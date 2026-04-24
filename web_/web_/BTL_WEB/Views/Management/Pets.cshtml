@@ -1,0 +1,816 @@
+@model BTL_WEB.Models.ViewModels.PetsPageViewModel
+@using System.Linq
+@using System.Text.Json
+@using System.IO
+@inject IWebHostEnvironment WebHostEnvironment
+
+@{
+    ViewData["Title"] = "Pet Gallery";
+    var isStaffOrAdmin = User.IsInRole(RoleNames.Admin) || User.IsInRole(RoleNames.Staff);
+    var canManagePets = User.IsInRole(RoleNames.Admin);
+    Layout = isStaffOrAdmin ? "_Layout" : "~/Views/Shared/_LayoutPetcarehub.cshtml";
+
+    var branchOptions = ViewBag.BranchOptions as IEnumerable<dynamic> ?? [];
+    var serverPetsJson = JsonSerializer.Serialize(Model.Pets.Select(p => new
+    {
+        petId = p.PetId,
+        name = p.Name,
+        species = p.Species,
+        breed = p.Breed,
+        age = (int?)null,
+        gender = p.Gender,
+        adoptionStatus = p.AdoptionStatus,
+        status = p.Status,
+        branchId = p.BranchId,
+        branchName = p.BranchName
+    }));
+    var serverImagesJson = JsonSerializer.Serialize(Model.Images.Select(i => new
+    {
+        petId = i.PetId,
+        imageUrl = i.ImageUrl,
+        isPrimary = i.IsPrimary
+    }));
+    var serverBranchesJson = JsonSerializer.Serialize(branchOptions.Select(b => new
+    {
+        branchId = (int)b.BranchId,
+        branchName = (string)b.BranchName
+    }));
+
+    var dogDirectoryCandidates = new[]
+    {
+        new global::System.IO.DirectoryInfo($"{WebHostEnvironment.WebRootPath}\\img\\img\\img dog"),
+        new global::System.IO.DirectoryInfo($"{WebHostEnvironment.WebRootPath}\\img\\img dog")
+    };
+    var catDirectoryCandidates = new[]
+    {
+        new global::System.IO.DirectoryInfo($"{WebHostEnvironment.WebRootPath}\\img\\img\\img cat"),
+        new global::System.IO.DirectoryInfo($"{WebHostEnvironment.WebRootPath}\\img\\img cat")
+    };
+
+    var dogDirectory = dogDirectoryCandidates.FirstOrDefault(d => d.Exists) ?? dogDirectoryCandidates[0];
+    var catDirectory = catDirectoryCandidates.FirstOrDefault(d => d.Exists) ?? catDirectoryCandidates[0];
+
+    string ToWebPath(global::System.IO.FileInfo fileInfo)
+    {
+        var relativePath = fileInfo.FullName
+            .Replace(WebHostEnvironment.WebRootPath, string.Empty)
+            .TrimStart('\\', '/')
+            .Replace('\\', '/');
+
+        return "/" + string.Join('/', relativePath
+            .Split('/', StringSplitOptions.RemoveEmptyEntries)
+            .Select(Uri.EscapeDataString));
+    }
+    var imageExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
+
+    var dogFallbackImagesJson = JsonSerializer.Serialize(
+        dogDirectory.Exists
+            ? dogDirectory.GetFiles()
+                .Where(x => imageExtensions.Contains(x.Extension))
+                .Select(ToWebPath)
+                .ToList()
+            : new List<string>());
+
+    var catFallbackImagesJson = JsonSerializer.Serialize(
+        catDirectory.Exists
+            ? catDirectory.GetFiles()
+                .Where(x => imageExtensions.Contains(x.Extension))
+                .Select(ToWebPath)
+                .ToList()
+            : new List<string>());
+}
+
+<section class="ftco-section bg-light pet-gallery-page">
+    <div class="container">
+        <div class="filter-bar shadow-sm mb-3">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <h2 class="pet-gallery-title mb-0">Quản lý thú cưng</h2>
+            </div>
+
+            <div class="row g-2 align-items-end">
+                <div class="col-lg-3 col-md-6 mb-2">
+                    <label for="searchInput" class="small text-muted">Tìm theo tên</label>
+                    <input id="searchInput" type="text" class="form-control" placeholder="Nhập tên thú cưng" />
+                </div>
+                <div class="col-lg-2 col-md-6 mb-2">
+                    <label for="speciesFilter" class="small text-muted">Loại</label>
+                    <select id="speciesFilter" class="form-control">
+                        <option value="">Tất cả</option>
+                    </select>
+                </div>
+                <div class="col-lg-2 col-md-6 mb-2">
+                    <label for="genderFilter" class="small text-muted">Giới tính</label>
+                    <select id="genderFilter" class="form-control">
+                        <option value="">Tất cả</option>
+                        <option value="Đực">Đực</option>
+                        <option value="Cái">Cái</option>
+                    </select>
+                </div>
+                <div class="col-lg-2 col-md-6 mb-2">
+                    <label for="branchFilter" class="small text-muted">Chi nhánh</label>
+                    <select id="branchFilter" class="form-control">
+                        <option value="">Tất cả</option>
+                    </select>
+                </div>
+                <div class="col-lg-2 col-md-6 mb-2">
+                    <label for="statusFilter" class="small text-muted">Trạng thái</label>
+                    <select id="statusFilter" class="form-control">
+                        <option value="">Tất cả trạng thái</option>
+                        <option value="Active">Đang hoạt động</option>
+                        <option value="Inactive">Ngừng hoạt động</option>
+                    </select>
+                </div>
+                <div class="col-lg-2 col-md-3 mb-2">
+                    <button id="btnFilter" type="button" class="btn btn-success w-100 admin-filter-btn">LỌC</button>
+                </div>
+
+                @if (canManagePets)
+                {
+                    <div class="col-lg-2 col-md-3 mb-2">
+                        <a asp-controller="Pets"
+                           asp-action="Create"
+                           class="btn btn-success w-100 admin-add-btn js-open-create-modal"
+                           data-create-url="@Url.Action("Create", "Pets")"
+                           data-modal-title="Thêm thú cưng">
+                            + THÊM THÚ CƯNG
+                        </a>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="mb-2 text-muted">Tổng: @Model.Pets.Count thú cưng</div>
+
+        <div id="petGalleryGrid" class="pet-grid mt-4"></div>
+
+        @if (canManagePets)
+        {
+            <div id="petEditModal" class="pet-edit-modal" style="display:none;">
+                <div class="pet-edit-backdrop"></div>
+                <div class="pet-edit-dialog card border-0 shadow">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="mb-0">Chỉnh sửa thú cưng</h5>
+                            <button type="button" class="close" aria-label="Close" id="btnClosePetEditModal">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+
+                        <form id="petEditForm" class="row g-2">
+                            <input type="hidden" id="editPetId" />
+                            <div class="col-md-6">
+                                <label class="small text-muted mb-1" for="editPetName">Tên</label>
+                                <input id="editPetName" class="form-control" required />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="small text-muted mb-1" for="editPetSpecies">Loài</label>
+                                <input id="editPetSpecies" class="form-control" required />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="small text-muted mb-1" for="editPetBreed">Giống</label>
+                                <input id="editPetBreed" class="form-control" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="small text-muted mb-1" for="editPetGender">Giới tính</label>
+                                <select id="editPetGender" class="form-control">
+                                    <option value="">Chưa cập nhật</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                    <option value="Đực">Đực</option>
+                                    <option value="Cái">Cái</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="small text-muted mb-1" for="editPetBranch">Chi nhánh</label>
+                                <select id="editPetBranch" class="form-control" required></select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="small text-muted mb-1" for="editPetAdoptionStatus">Nhận nuôi</label>
+                                <select id="editPetAdoptionStatus" class="form-control" required>
+                                    <option value="Available">Có sẵn</option>
+                                    <option value="Pending">Đang chờ</option>
+                                    <option value="Adopted">Đã nhận nuôi</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="small text-muted mb-1" for="editPetStatus">Trạng thái</label>
+                                <select id="editPetStatus" class="form-control" required>
+                                    <option value="Active">Đang hoạt động</option>
+                                    <option value="Inactive">Ngừng hoạt động</option>
+                                </select>
+                            </div>
+                            <div class="col-12 text-danger small" id="petEditMessage"></div>
+                            <div class="col-12 d-flex justify-content-end gap-2 mt-2">
+                                <button type="button" class="btn btn-outline-danger mr-auto" id="btnDeletePet">Xoa thu cung</button>
+                                <button type="button" class="btn btn-outline-secondary" id="btnCancelPetEdit">Hủy</button>
+                                <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</section>
+
+<style>
+    .pet-gallery-page {
+        --brand-green: #28a745;
+    }
+
+    .pet-gallery-title {
+        color: #1f7a35;
+        font-weight: 700;
+        font-size: 2rem;
+    }
+
+    .filter-bar {
+        background: #fff;
+        border-radius: 12px;
+        padding: 1rem;
+        border: 1px solid #e8ecef;
+    }
+
+    .admin-add-btn {
+        font-weight: 700;
+        letter-spacing: .3px;
+        height: 42px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .admin-filter-btn {
+        height: 42px;
+        font-weight: 700;
+    }
+
+    .filter-bar .form-control {
+        height: 42px;
+        border-radius: 8px;
+    }
+
+    .pet-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 1.25rem;
+    }
+
+    .pet-card {
+        background: #fff;
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+        transition: transform .25s ease, box-shadow .25s ease;
+        display: flex;
+        flex-direction: column;
+        cursor: pointer;
+    }
+
+    .pet-card:hover {
+        transform: translateY(-4px) scale(1.02);
+        box-shadow: 0 .8rem 1.5rem rgba(40, 167, 69, .15);
+    }
+
+    .pet-image-wrap {
+        position: relative;
+        height: 210px;
+        overflow: hidden;
+    }
+
+    .pet-image-wrap img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .species-badge {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(40, 167, 69, .9);
+        color: #fff;
+        border-radius: 999px;
+        padding: .35rem .75rem;
+        font-size: .78rem;
+        font-weight: 600;
+    }
+
+    .pet-card-body {
+        padding: 1rem;
+    }
+
+    .pet-card-body h3 {
+        font-size: 1.1rem;
+        margin-bottom: .5rem;
+        color: #1f2937;
+    }
+
+    .pet-meta {
+        color: #4b5563;
+        margin-bottom: .25rem;
+        font-size: .92rem;
+    }
+
+    .pet-card-footer {
+        margin-top: auto;
+        padding: .9rem 1rem 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-top: 1px solid #f1f4f6;
+    }
+
+    .status-badge {
+        border-radius: 999px;
+        padding: .35rem .7rem;
+        font-size: .76rem;
+        font-weight: 600;
+    }
+
+    .status-available { background: #e8f7ed; color: #1b7f38; }
+    .status-pending { background: #fff6db; color: #b78600; }
+    .status-adopted { background: #f1f3f5; color: #6c757d; }
+
+    .btn-detail {
+        color: #28a745;
+        border: 1px solid #28a745;
+        border-radius: 999px;
+        padding: .5rem 1.1rem;
+        font-size: .95rem;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .btn-detail:hover {
+        background: #28a745;
+        color: #fff;
+        text-decoration: none;
+    }
+
+    .empty-box {
+        grid-column: 1 / -1;
+        background: #fff;
+        border: 1px dashed #ced4da;
+        border-radius: 10px;
+        text-align: center;
+        padding: 2rem 1rem;
+        color: #6b7280;
+    }
+
+    .pet-edit-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 1055;
+        display: none;
+    }
+
+    .pet-edit-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, .4);
+    }
+
+    .pet-edit-dialog {
+        position: relative;
+        width: min(680px, calc(100vw - 2rem));
+        margin: 5vh auto;
+        border-radius: 12px;
+        z-index: 1;
+    }
+
+    @@media (max-width: 991px) {
+        .pet-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @@media (max-width: 767px) {
+        .pet-grid { grid-template-columns: 1fr; }
+    }
+</style>
+
+<script src="~/js/data.js" asp-append-version="true"></script>
+<script>
+    (function () {
+        const canManagePets = @JsonSerializer.Serialize(canManagePets).ToLowerInvariant();
+        const serverPets = @Html.Raw(serverPetsJson);
+        const serverBranches = @Html.Raw(serverBranchesJson);
+        const serverImages = @Html.Raw(serverImagesJson);
+        const dogFallbackImages = @Html.Raw(dogFallbackImagesJson);
+        const catFallbackImages = @Html.Raw(catFallbackImagesJson);
+
+        const pets = serverPets.length ? serverPets : (window.petData || []);
+        const branches = serverBranches.length ? serverBranches : (window.branchData || []);
+        const images = serverImages.length ? serverImages : (window.petImageData || []);
+        const commonFallbackImages = [
+            '/LayoutPetcare/images/gallery-1.jpg',
+            '/LayoutPetcare/images/gallery-2.jpg',
+            '/LayoutPetcare/images/gallery-3.jpg'
+        ];
+        const branchIdByName = Object.fromEntries(
+            branches.map(b => [normalizeText(b.branchName).replaceAll(' ', ''), b.branchId])
+        );
+        const normalizedPets = pets.map(p => ({
+            ...p,
+            branchId: p.branchId ?? branchIdByName[normalizeText(p.branchName).replaceAll(' ', '')]
+        }));
+
+        const searchInput = document.getElementById('searchInput');
+        const speciesFilter = document.getElementById('speciesFilter');
+        const genderFilter = document.getElementById('genderFilter');
+        const branchFilter = document.getElementById('branchFilter');
+        const statusFilter = document.getElementById('statusFilter');
+        const btnFilter = document.getElementById('btnFilter');
+        const grid = document.getElementById('petGalleryGrid');
+        const petEditModal = document.getElementById('petEditModal');
+        const petEditForm = document.getElementById('petEditForm');
+        const petEditMessage = document.getElementById('petEditMessage');
+        const editPetId = document.getElementById('editPetId');
+        const editPetName = document.getElementById('editPetName');
+        const editPetSpecies = document.getElementById('editPetSpecies');
+        const editPetBreed = document.getElementById('editPetBreed');
+        const editPetGender = document.getElementById('editPetGender');
+        const editPetBranch = document.getElementById('editPetBranch');
+        const editPetAdoptionStatus = document.getElementById('editPetAdoptionStatus');
+        const editPetStatus = document.getElementById('editPetStatus');
+        const btnClosePetEditModal = document.getElementById('btnClosePetEditModal');
+        const btnCancelPetEdit = document.getElementById('btnCancelPetEdit');
+        const btnDeletePet = document.getElementById('btnDeletePet');
+        let activePetDetail = null;
+
+        function fillOptions() {
+            const speciesSet = [...new Set(normalizedPets.map(x => x.species))];
+            speciesSet.forEach(s => speciesFilter.innerHTML += `<option value="${s}">${s}</option>`);
+
+            branches.forEach(b => branchFilter.innerHTML += `<option value="${b.branchId}">${b.branchName}</option>`);
+
+            if (editPetBranch) {
+                editPetBranch.innerHTML = branches
+                    .map(b => `<option value="${b.branchId}">${b.branchName}</option>`)
+                    .join('');
+            }
+        }
+
+        function getFallbackImage(petId, species) {
+            const speciesKey = normalizeText(species).trim();
+            const fallbackPool = speciesKey.includes('cho') || speciesKey.includes('dog')
+                ? (dogFallbackImages.length ? dogFallbackImages : commonFallbackImages)
+                : speciesKey.includes('meo') || speciesKey.includes('cat')
+                    ? (catFallbackImages.length ? catFallbackImages : commonFallbackImages)
+                    : commonFallbackImages;
+
+            const index = Math.abs(Number(petId) || 0) % fallbackPool.length;
+            return fallbackPool[index];
+        }
+
+        function resolveImageUrl(imageUrl, petId, species) {
+            if (!imageUrl) {
+                return getFallbackImage(petId, species);
+            }
+
+            let value = String(imageUrl).trim().replaceAll('\\', '/');
+            if (!value) {
+                return getFallbackImage(petId, species);
+            }
+
+            if (/^https?:\/\//i.test(value) || value.startsWith('data:')) {
+                return value;
+            }
+
+            if (value.startsWith('~/')) {
+                return `/${value.slice(2)}`;
+            }
+
+            if (value.startsWith('/')) {
+                return value;
+            }
+
+            if (value.startsWith('wwwroot/')) {
+                return `/${value.slice('wwwroot/'.length)}`;
+            }
+
+            if (value.startsWith('LayoutPetcare/')) {
+                return `/${value}`;
+            }
+
+            if (value.startsWith('images/')) {
+                return `/LayoutPetcare/${value}`;
+            }
+
+            return `/${value}`;
+        }
+
+        function getPrimaryImage(petId, species) {
+            const found = images.find(i => i.petId === petId && i.isPrimary) || images.find(i => i.petId === petId);
+            if (found?.imageUrl) {
+                return resolveImageUrl(found.imageUrl, petId, species);
+            }
+
+            return getFallbackImage(petId, species);
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;');
+        }
+
+        function getBranchName(branchId, branchName) {
+            return branchName || branches.find(b => String(b.branchId) === String(branchId))?.branchName || 'Chưa xác định';
+        }
+
+        function getStatusClass(status) {
+            const key = (status || '').toLowerCase();
+            if (key === 'available') return 'status-available';
+            if (key === 'pending') return 'status-pending';
+            return 'status-adopted';
+        }
+
+        function getStatusLabel(status) {
+            const labels = {
+                available: 'Có sẵn',
+                pending: 'Đang chờ',
+                adopted: 'Đã nhận nuôi',
+                active: 'Đang hoạt động',
+                inactive: 'Ngừng hoạt động'
+            };
+            const key = (status || '').toLowerCase();
+            return labels[key] || status || 'Chưa cập nhật';
+        }
+
+        function normalizeText(value) {
+            return String(value ?? '')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replaceAll('đ', 'd')
+                .trim();
+        }
+
+        function normalizeGender(value) {
+            const key = normalizeText(value).trim();
+            if (key === 'duc' || key === 'male' || key === 'm') return 'male';
+            if (key === 'cai' || key === 'female' || key === 'f') return 'female';
+            return key;
+        }
+
+        function normalizeSpecies(value) {
+            const key = normalizeText(value).trim();
+            if (key.includes('dog') || key.includes('cho') || key.includes('cun')) return 'dog';
+            if (key.includes('cat') || key.includes('meo')) return 'cat';
+            return key;
+        }
+
+        function render(list) {
+            if (!list.length) {
+                grid.innerHTML = '<div class="empty-box">Không có thú cưng phù hợp bộ lọc.</div>';
+                return;
+            }
+
+            grid.innerHTML = list.map(p => `
+                <article class="pet-card js-open-detail" data-pet-id="${p.petId}">
+                    <div class="pet-image-wrap">
+                        <img src="${escapeHtml(getPrimaryImage(p.petId, p.species))}" alt="${escapeHtml(p.name)}" onerror="this.onerror=null;this.src='${getFallbackImage(p.petId, p.species)}';" />
+                        <span class="species-badge">${escapeHtml(p.species)}</span>
+                    </div>
+                    <div class="pet-card-body">
+                        <h3>${escapeHtml(p.name)}</h3>
+                        <p class="pet-meta"><strong>Giống:</strong> ${escapeHtml(p.breed ?? 'N/A')}</p>
+                        <p class="pet-meta"><strong>Tuổi:</strong> ${p.age ? `${p.age} tuổi` : 'Chưa cập nhật'}</p>
+                        <p class="pet-meta"><strong>Giới tính:</strong> ${escapeHtml(p.gender ?? 'N/A')}</p>
+                        <p class="pet-meta"><strong>Chi nhánh:</strong> ${escapeHtml(getBranchName(p.branchId, p.branchName))}</p>
+                    </div>
+                    <div class="pet-card-footer">
+                        ${canManagePets
+                            ? `<button type="button" class="btn-detail js-open-edit" data-pet-id="${p.petId}">Chỉnh sửa</button>`
+                            : `<a class="btn-detail" href="/Management/PetDetail?id=${p.petId}">Xem chi tiết</a>`}
+                    </div>
+                </article>
+            `).join('');
+        }
+
+        function applyFilter() {
+            const searchValue = normalizeText((searchInput.value || '').trim());
+            const speciesValue = normalizeText(speciesFilter.value);
+            const genderValue = normalizeGender(genderFilter.value);
+            const branchValue = branchFilter.value;
+            const statusValue = normalizeText(statusFilter?.value || '');
+
+            console.log('Filter values:', { searchValue, speciesValue, genderValue, branchValue });
+
+            const filtered = normalizedPets.filter(p => {
+                const matchName = !searchValue
+                    || normalizeText(p.name).includes(searchValue)
+                    || normalizeText(p.species).includes(searchValue)
+                    || normalizeText(p.breed).includes(searchValue);
+                const matchSpecies = !speciesValue || normalizeSpecies(p.species) === normalizeSpecies(speciesValue);
+                const matchGender = !genderValue || normalizeGender(p.gender) === genderValue;
+                const matchBranch = !branchValue || String(p.branchId) === String(branchValue);
+                const matchStatus = !statusValue || normalizeText(p.status) === statusValue;
+                return matchName && matchSpecies && matchGender && matchBranch && matchStatus;
+            });
+
+            render(filtered);
+        }
+
+        function closeEditModal() {
+            if (!petEditModal) return;
+            petEditModal.style.display = 'none';
+            if (petEditMessage) petEditMessage.textContent = '';
+            activePetDetail = null;
+        }
+
+        function openEditModal() {
+            if (!petEditModal) return;
+            petEditModal.style.display = 'block';
+        }
+
+        function pick(data, camel, pascal) {
+            return data?.[camel] ?? data?.[pascal] ?? null;
+        }
+
+        async function loadPetForEdit(petId) {
+            if (!petEditModal) return;
+
+            if (petEditMessage) petEditMessage.textContent = '';
+            const response = await fetch(`/api/pets/${petId}`);
+            if (!response.ok) {
+                if (petEditMessage) petEditMessage.textContent = 'Không tải được thông tin thú cưng.';
+                return;
+            }
+
+            const data = await response.json();
+            activePetDetail = {
+                dateOfBirth: pick(data, 'dateOfBirth', 'DateOfBirth'),
+                color: pick(data, 'color', 'Color'),
+                weight: pick(data, 'weight', 'Weight'),
+                description: pick(data, 'description', 'Description'),
+                healthStatus: pick(data, 'healthStatus', 'HealthStatus'),
+                vaccinationStatus: pick(data, 'vaccinationStatus', 'VaccinationStatus'),
+                ownerId: pick(data, 'ownerId', 'OwnerId')
+            };
+
+            editPetId.value = pick(data, 'petId', 'PetId') ?? petId;
+            editPetName.value = pick(data, 'name', 'Name') ?? '';
+            editPetSpecies.value = pick(data, 'species', 'Species') ?? '';
+            editPetBreed.value = pick(data, 'breed', 'Breed') ?? '';
+            editPetGender.value = pick(data, 'gender', 'Gender') ?? '';
+            editPetBranch.value = String(pick(data, 'branchId', 'BranchId') ?? '');
+            editPetAdoptionStatus.value = pick(data, 'adoptionStatus', 'AdoptionStatus') ?? 'Available';
+            editPetStatus.value = pick(data, 'status', 'Status') ?? 'Active';
+
+            openEditModal();
+        }
+
+        async function submitPetEdit(event) {
+            event.preventDefault();
+            if (!activePetDetail) return;
+
+            const petId = Number(editPetId.value);
+            const payload = {
+                name: editPetName.value.trim(),
+                species: editPetSpecies.value.trim(),
+                breed: editPetBreed.value.trim() || null,
+                gender: editPetGender.value || null,
+                dateOfBirth: activePetDetail.dateOfBirth,
+                color: activePetDetail.color,
+                weight: activePetDetail.weight,
+                description: activePetDetail.description,
+                healthStatus: activePetDetail.healthStatus,
+                vaccinationStatus: activePetDetail.vaccinationStatus,
+                adoptionStatus: editPetAdoptionStatus.value,
+                branchId: Number(editPetBranch.value),
+                ownerId: activePetDetail.ownerId,
+                status: editPetStatus.value
+            };
+
+            const response = await fetch(`/api/pets/${petId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const error = await response.text();
+                if (petEditMessage) petEditMessage.textContent = error || 'Cập nhật thất bại.';
+                return;
+            }
+
+            const target = normalizedPets.find(x => Number(x.petId) === petId);
+            if (target) {
+                target.name = payload.name;
+                target.species = payload.species;
+                target.breed = payload.breed;
+                target.gender = payload.gender;
+                target.adoptionStatus = payload.adoptionStatus;
+                target.branchId = payload.branchId;
+                target.branchName = branches.find(b => Number(b.branchId) === payload.branchId)?.branchName ?? target.branchName;
+            }
+
+            applyFilter();
+            closeEditModal();
+        }
+
+        async function deletePet() {
+            const petId = Number(editPetId?.value || 0);
+            if (petId <= 0) return;
+
+            const petName = editPetName?.value?.trim() || 'thu cung nay';
+            if (!window.confirm(`Xac nhan xoa ${petName}?`)) {
+                return;
+            }
+
+            if (petEditMessage) {
+                petEditMessage.textContent = '';
+            }
+
+            const response = await fetch(`/api/pets/${petId}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                let errorMessage = 'Xoa thu cung that bai.';
+
+                try {
+                    const error = await response.json();
+                    errorMessage = error?.message || errorMessage;
+                } catch {
+                    const text = await response.text();
+                    if (text) {
+                        errorMessage = text;
+                    }
+                }
+
+                if (petEditMessage) {
+                    petEditMessage.textContent = errorMessage;
+                }
+                return;
+            }
+
+            const petIndex = normalizedPets.findIndex(x => Number(x.petId) === petId);
+            if (petIndex >= 0) {
+                normalizedPets.splice(petIndex, 1);
+            }
+
+            for (let i = images.length - 1; i >= 0; i -= 1) {
+                if (Number(images[i].petId) === petId) {
+                    images.splice(i, 1);
+                }
+            }
+
+            applyFilter();
+            closeEditModal();
+        }
+
+        fillOptions();
+        if (statusFilter) {
+            statusFilter.value = 'Active';
+        }
+        applyFilter();
+        btnFilter.addEventListener('click', applyFilter);
+        statusFilter?.addEventListener('change', applyFilter);
+        searchInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                applyFilter();
+            }
+        });
+
+        if (canManagePets) {
+            grid.addEventListener('click', event => {
+                const button = event.target.closest('.js-open-edit');
+                if (!button) return;
+                const petId = Number(button.dataset.petId);
+                if (petId > 0) {
+                    loadPetForEdit(petId);
+                }
+            });
+
+            petEditForm?.addEventListener('submit', submitPetEdit);
+            btnDeletePet?.addEventListener('click', deletePet);
+            btnClosePetEditModal?.addEventListener('click', closeEditModal);
+            btnCancelPetEdit?.addEventListener('click', closeEditModal);
+            petEditModal?.querySelector('.pet-edit-backdrop')?.addEventListener('click', closeEditModal);
+        }
+
+        grid.addEventListener('click', event => {
+            if (event.target.closest('.js-open-edit')) {
+                return;
+            }
+
+            const card = event.target.closest('.js-open-detail');
+            if (!card) {
+                return;
+            }
+
+            const petId = Number(card.dataset.petId);
+            if (petId > 0) {
+                window.location.href = `/Management/PetDetail?id=${petId}`;
+            }
+        });
+    })();
+</script>

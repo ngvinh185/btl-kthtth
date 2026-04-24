@@ -1,0 +1,632 @@
+@model BTL_WEB.Models.ViewModels.AppointmentsPageViewModel
+
+@{
+    var isStaffOrAdmin = ViewBag.IsStaffOrAdmin as bool? == true;
+    Layout = isStaffOrAdmin ? "_Layout" : "~/Views/Shared/_LayoutPetcarehub.cshtml";
+    var pets = ViewBag.PetOptions as IEnumerable<dynamic> ?? [];
+    var branches = ViewBag.BranchOptions as IEnumerable<dynamic> ?? [];
+    var services = ViewBag.ServiceOptions as IEnumerable<dynamic> ?? [];
+    ViewData["Title"] = isStaffOrAdmin ? "Quản lý lịch hẹn" : "Lịch hẹn của tôi";
+    var minAppointmentDateTime = DateTime.Now.ToString("yyyy-MM-ddTHH:mm");
+    var defaultAppointmentDateTime = DateTime.Now.AddMinutes(30).ToString("yyyy-MM-ddTHH:mm");
+}
+
+<section class="ftco-section bg-light">
+    <div class="container">
+        <style>
+            .appointment-table td,
+            .appointment-table th {
+                vertical-align: top;
+            }
+
+            .appointment-table .text-wrap-cell {
+                white-space: normal;
+                word-break: break-word;
+            }
+
+            .appointment-action-cell {
+                min-width: 150px;
+            }
+
+            .appointment-action-group {
+                display: flex;
+                flex-wrap: wrap;
+                gap: .35rem;
+            }
+
+            .appointment-table .btn-sm {
+                padding: .2rem .45rem;
+                font-size: .78rem;
+            }
+
+            .appointment-table td,
+            .appointment-table th {
+                font-size: .9rem;
+            }
+
+            .appointment-payment-status {
+                display: flex;
+                flex-direction: column;
+                gap: .35rem;
+            }
+
+            .appointment-payment-status small {
+                color: #6c757d;
+                font-weight: 600;
+            }
+
+            .appointment-payment-modal .modal-dialog {
+                max-width: 760px;
+            }
+
+            .appointment-payment-card {
+                border: 1px solid #e9ecef;
+                border-radius: 14px;
+                padding: 1rem;
+                background: #f8fafc;
+                height: 100%;
+            }
+
+            .appointment-payment-label {
+                display: block;
+                font-size: .78rem;
+                text-transform: uppercase;
+                letter-spacing: .06em;
+                color: #6c757d;
+                margin-bottom: .3rem;
+            }
+
+            .appointment-payment-value {
+                font-weight: 600;
+                color: #212529;
+                word-break: break-word;
+            }
+
+            .appointment-payment-amount {
+                font-size: 1.7rem;
+                font-weight: 700;
+                color: #00bd56;
+                line-height: 1.1;
+            }
+
+            .appointment-payment-qr {
+                width: min(100%, 280px);
+                aspect-ratio: 1;
+                object-fit: contain;
+                border-radius: 16px;
+                background: #fff;
+                border: 1px solid #e9ecef;
+                padding: .85rem;
+                margin: 0 auto;
+                display: block;
+            }
+
+            .appointment-payment-qr-empty {
+                width: min(100%, 280px);
+                min-height: 280px;
+                margin: 0 auto;
+                border-radius: 16px;
+                border: 1px dashed #ced4da;
+                background: #fff;
+                color: #6c757d;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                text-align: center;
+                padding: 1.25rem;
+            }
+        </style>
+
+        @if (TempData["SuccessMessage"] is string successMessage)
+        {
+            <div class="alert alert-success">@successMessage</div>
+        }
+        @if (TempData["ErrorMessage"] is string errorMessage)
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card p-3" id="create-appointment-form">
+                    <h5 class="mb-3">@(isStaffOrAdmin ? "Tạo lịch hẹn mới" : "Đặt lịch hẹn mới")</h5>
+                    @if (!pets.Any())
+                    {
+                        <div class="alert alert-info mb-0">
+                            Tài khoản này chưa có thú cưng để đặt lịch. Vui lòng cập nhật hồ sơ thú cưng trước.
+                        </div>
+                    }
+                    else
+                    {
+                        <form method="post" asp-action="CreateAppointment" class="row">
+                            @Html.AntiForgeryToken()
+                            <div class="col-md-3 mb-2">
+                                <select class="form-control" name="petId" required>
+                                    <option value="">Chọn thú cưng</option>
+                                    @foreach (var pet in pets)
+                                    {
+                                        <option value="@pet.PetId" selected="@(Model.SelectedPetId == (int)pet.PetId)">@pet.Name</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <select class="form-control" name="branchId" required>
+                                    <option value="">Chọn chi nhánh</option>
+                                    @foreach (var branch in branches)
+                                    {
+                                        <option value="@branch.BranchId">@branch.BranchName</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <input class="form-control"
+                                       type="datetime-local"
+                                       name="appointmentDateTime"
+                                       min="@minAppointmentDateTime"
+                                       value="@defaultAppointmentDateTime"
+                                       step="60"
+                                       required />
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <select class="form-control" name="selectedServiceId">
+                                    <option value="">Dịch vụ (tuỳ chọn)</option>
+                                    @foreach (var service in services)
+                                    {
+                                        <option value="@service.ServiceId" selected="@(Model.SelectedServiceId == (int)service.ServiceId)">@service.ServiceName</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <input class="form-control" name="notes" placeholder="Ghi chú thêm" />
+                            </div>
+                            <div class="col-md-12 mb-2 text-right">
+                                <button type="submit" class="btn btn-primary btn-block">@(isStaffOrAdmin ? "Tạo lịch hẹn" : "Đặt lịch hẹn")</button>
+                            </div>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="row justify-content-center mb-4">
+            <div class="col-md-10 text-center heading-section ftco-animate">
+                <h2>@(isStaffOrAdmin ? "Quản lý lịch hẹn" : "Lịch hẹn của tôi")</h2>
+                <p>@(isStaffOrAdmin ? "Theo dõi toàn bộ lịch hẹn từ hệ thống." : "Theo dõi các lịch hẹn đã đặt bằng tài khoản của bạn.")</p>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="p-4 rounded" style="background-image:url('@Url.Content("~/LayoutPetcare/images/about.jpg")');background-size:cover;background-position:center;">
+                    <div class="p-3" style="background:rgba(0,0,0,.45);border-radius:8px;">
+                        <h3 class="text-white mb-1">@(isStaffOrAdmin ? "Module lịch hẹn" : "Thông tin lịch hẹn")</h3>
+                        <p class="text-white mb-0">@(isStaffOrAdmin ? "Theo dõi lịch hẹn, bác sĩ phụ trách và dịch vụ phát sinh theo từng cuộc hẹn." : "Kiểm tra thời gian, chi nhánh, trạng thái và dịch vụ đã chọn.")</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card p-3">
+                    <form method="get" class="row">
+                        <div class="col-md-3 mb-2"><input class="form-control" disabled placeholder="Danh sách quản lý " /></div>
+                        <div class="col-md-2 mb-2"><input class="form-control" name="date" value="@(Model.Date?.ToString("yyyy-MM-dd"))" type="date" /></div>
+                        <div class="col-md-2 mb-2">
+                            <select class="form-control" name="status">
+                                @if (string.IsNullOrWhiteSpace(Model.Status))
+                                {
+                                    <option value="" selected>Tất cả trạng thái</option>
+                                }
+                                else
+                                {
+                                    <option value="">Tất cả trạng thái</option>
+                                }
+
+                                @if (Model.Status == "Pending")
+                                {
+                                    <option value="Pending" selected>Đang chờ</option>
+                                }
+                                else
+                                {
+                                    <option value="Pending">Đang chờ</option>
+                                }
+
+                                @if (Model.Status == "Confirmed")
+                                {
+                                    <option value="Confirmed" selected>Đã xác nhận</option>
+                                }
+                                else
+                                {
+                                    <option value="Confirmed">Đã xác nhận</option>
+                                }
+
+                                @if (Model.Status == "Completed")
+                                {
+                                    <option value="Completed" selected>Hoàn tất</option>
+                                }
+                                else
+                                {
+                                    <option value="Completed">Hoàn tất</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            @{
+                                var sortKey = $"{Model.SortBy}|{Model.SortDirection}";
+                            }
+                            <select class="form-control" name="sortBy">
+                                @if (sortKey == "AppointmentDateTime|desc")
+                                {
+                                    <option value="AppointmentDateTime|desc" selected>Ngày hẹn mới nhất</option>
+                                }
+                                else
+                                {
+                                    <option value="AppointmentDateTime|desc">Ngày hẹn mới nhất</option>
+                                }
+
+                                @if (sortKey == "AppointmentDateTime|asc")
+                                {
+                                    <option value="AppointmentDateTime|asc" selected>Ngày hẹn cũ nhất</option>
+                                }
+                                else
+                                {
+                                    <option value="AppointmentDateTime|asc">Ngày hẹn cũ nhất</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-2 mb-2"><button type="submit" class="btn btn-primary btn-block">Lọc lịch hẹn</button></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-striped table-bordered bg-white appointment-table">
+                <thead>
+                    <tr>
+                        @if (isStaffOrAdmin)
+                        {
+                            <th>AppointmentID</th>
+                            <th>Khách hàng</th>
+                        }
+                        <th>Thú cưng</th>
+                        <th>Chi nhánh</th>
+                        <th>Thời gian</th>
+                        <th>Trạng thái</th>
+                        <th>Thanh toán</th>
+                        @if (isStaffOrAdmin)
+                        {
+                            <th>Duyệt lịch</th>
+                            <th>Xác nhận thanh toán</th>
+                        }
+                        else
+                        {
+                            <th>Action</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Appointments.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="@(isStaffOrAdmin ? 9 : 5)" class="text-center text-muted">Không có lịch hẹn phù hợp bộ lọc.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var item in Model.Appointments)
+                        {
+                            var statusKey = (item.Status ?? string.Empty).Trim().ToLowerInvariant();
+                            var paymentStatusKey = (item.PaymentStatus ?? string.Empty).Trim().ToLowerInvariant();
+                            var paymentBadgeClass = paymentStatusKey switch
+                            {
+                                "paid" => "badge-success",
+                                "failed" => "badge-danger",
+                                _ => "badge-warning"
+                            };
+                            var paymentLabel = paymentStatusKey switch
+                            {
+                                "paid" => "Đã thanh toán",
+                                "failed" => "Thanh toán lỗi",
+                                _ => "Chưa thanh toán"
+                            };
+                            var canCancelAppointment = statusKey == "pending" || statusKey == "confirmed";
+                            var canOpenPaymentModal = !isStaffOrAdmin
+                                && paymentStatusKey != "paid"
+                                && statusKey != "cancelled"
+                                && item.PaymentAmount > 0;
+                            <tr>
+                                @if (isStaffOrAdmin)
+                                {
+                                    <td>@item.AppointmentId</td>
+                                    <td class="text-wrap-cell">@item.UserName</td>
+                                }
+                                <td>@item.PetName</td>
+                                <td class="text-wrap-cell">@item.BranchName</td>
+                                <td>@item.AppointmentDateTime.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td><span class="badge @StatusDisplay.BadgeClass(item.Status)">@StatusDisplay.Label(item.Status)</span></td>
+                                <td>
+                                    <div class="appointment-payment-status">
+                                        <span class="badge @paymentBadgeClass">@paymentLabel</span>
+                                        @if (item.PaymentAmount > 0)
+                                        {
+                                            <small>@item.PaymentAmountDisplay</small>
+                                        }
+                                    </div>
+                                </td>
+                                @if (isStaffOrAdmin)
+                                {
+                                    <td class="appointment-action-cell">
+                                        @if (statusKey == "pending")
+                                        {
+                                            <div class="appointment-action-group">
+                                                <form method="post" asp-action="UpdateAppointmentStatus" class="d-inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="appointmentId" value="@item.AppointmentId" />
+                                                    <input type="hidden" name="status" value="Confirmed" />
+                                                    <input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" />
+                                                    <button type="submit" class="btn btn-sm btn-success">Duyệt</button>
+                                                </form>
+                                                <form method="post" asp-action="UpdateAppointmentStatus" class="d-inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="appointmentId" value="@item.AppointmentId" />
+                                                    <input type="hidden" name="status" value="Cancelled" />
+                                                    <input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger">Từ chối</button>
+                                                </form>
+                                            </div>
+                                        }
+                                        else if (statusKey == "confirmed")
+                                        {
+                                            <div class="appointment-action-group">
+                                                <form method="post" asp-action="UpdateAppointmentStatus" class="d-inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="appointmentId" value="@item.AppointmentId" />
+                                                    <input type="hidden" name="status" value="Completed" />
+                                                    <input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" />
+                                                    <button type="submit" class="btn btn-sm btn-primary">Hoàn tất</button>
+                                                </form>
+                                                <form method="post" asp-action="UpdateAppointmentStatus" class="d-inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="appointmentId" value="@item.AppointmentId" />
+                                                    <input type="hidden" name="status" value="Cancelled" />
+                                                    <input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger">Hủy</button>
+                                                </form>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td class="appointment-action-cell">
+                                        <div class="appointment-action-group">
+                                            <form method="post" asp-action="UpdateAppointmentPaymentStatus" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="appointmentId" value="@item.AppointmentId" />
+                                                <input type="hidden" name="paymentStatus" value="Paid" />
+                                                <input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" />
+                                                <button type="submit" class="btn btn-sm btn-success" @(paymentStatusKey == "paid" ? "disabled" : null)>Đã thanh toán</button>
+                                            </form>
+                                            <form method="post" asp-action="UpdateAppointmentPaymentStatus" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="appointmentId" value="@item.AppointmentId" />
+                                                <input type="hidden" name="paymentStatus" value="Pending" />
+                                                <input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" />
+                                                <button type="submit" class="btn btn-sm btn-outline-secondary" @(paymentStatusKey != "paid" ? "disabled" : null)>Chưa TT</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                }
+                                else
+                                {
+                                    <td class="appointment-action-cell">
+                                        <div class="appointment-action-group">
+                                            @if (canOpenPaymentModal)
+                                            {
+                                                <button type="button"
+                                                        class="btn btn-sm btn-primary btn-open-appointment-payment"
+                                                        data-appointment-id="@item.AppointmentId"
+                                                        data-pet-name="@item.PetName"
+                                                        data-branch-name="@item.BranchName"
+                                                        data-appointment-time="@item.AppointmentDateTime.ToString("dd/MM/yyyy HH:mm")"
+                                                        data-amount="@item.PaymentAmountDisplay"
+                                                        data-qr-url="@item.PaymentQrImageUrl"
+                                                        data-bank-name="@item.PaymentBankName"
+                                                        data-account-number="@item.PaymentAccountNumber"
+                                                        data-account-name="@item.PaymentAccountName"
+                                                        data-transfer-content="@item.PaymentTransferContent">
+                                                    Thanh toan
+                                                </button>
+                                            }
+
+                                            @if (canCancelAppointment)
+                                            {
+                                                <form method="post" asp-action="CancelMyAppointment" class="d-inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="appointmentId" value="@item.AppointmentId" />
+                                                    <input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Ban co chac muon huy lich hen nay khong?');">Huy lich</button>
+                                                </form>
+                                            }
+
+                                            @if (!canOpenPaymentModal && !canCancelAppointment)
+                                            {
+                                                <span class="text-muted">-</span>
+                                            }
+                                        </div>
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <h4 class="mb-3">@(isStaffOrAdmin ? "Dịch vụ theo lịch hẹn" : "Dịch vụ đã chọn")</h4>
+        <div class="table-responsive">
+            <table class="table table-striped table-bordered bg-white">
+                <thead>
+                    <tr>
+                        @if (isStaffOrAdmin)
+                        {
+                            <th>AppointmentID</th>
+                            <th>ServiceID</th>
+                        }
+                        <th>Dịch vụ</th>
+                        <th>Số lượng</th>
+                        <th>Đơn giá</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.AppointmentServices.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="@(isStaffOrAdmin ? 5 : 3)" class="text-center text-muted">Chưa có dịch vụ phát sinh theo lịch hẹn.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var item in Model.AppointmentServices)
+                        {
+                            <tr>
+                                @if (isStaffOrAdmin)
+                                {
+                                    <td>@item.AppointmentId</td>
+                                    <td>@item.ServiceId</td>
+                                }
+                                <td>@item.ServiceName</td>
+                                <td>@item.Quantity</td>
+                                <td>@item.UnitPrice.ToString("N0") đ</td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (!isStaffOrAdmin)
+        {
+            <div class="modal fade appointment-payment-modal" id="appointmentPaymentModal" tabindex="-1" role="dialog" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Thanh toan lich hen</h5>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3 mb-md-0">
+                                    <div class="appointment-payment-card text-center">
+                                        <span class="appointment-payment-label">Ma QR chuyen khoan</span>
+                                        <img id="appointmentPaymentQrImage" class="appointment-payment-qr" alt="Ma QR thanh toan" style="display:none;" />
+                                        <div id="appointmentPaymentQrEmpty" class="appointment-payment-qr-empty" style="display:none;">
+                                            Chua cau hinh QR thanh toan cho he thong.
+                                        </div>
+                                        <p class="text-muted small mb-0 mt-3">Sau khi chuyen khoan, vui long cho nhan vien xac nhan thanh toan.</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="appointment-payment-card">
+                                        <div class="mb-3">
+                                            <span class="appointment-payment-label">So tien can thanh toan</span>
+                                            <div id="appointmentPaymentAmount" class="appointment-payment-amount">0 đ</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <span class="appointment-payment-label">Lich hen</span>
+                                            <div id="appointmentPaymentAppointmentInfo" class="appointment-payment-value">-</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <span class="appointment-payment-label">Chi nhanh</span>
+                                            <div id="appointmentPaymentBranchName" class="appointment-payment-value">-</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <span class="appointment-payment-label">Ngan hang</span>
+                                            <div id="appointmentPaymentBankName" class="appointment-payment-value">-</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <span class="appointment-payment-label">So tai khoan</span>
+                                            <div id="appointmentPaymentAccountNumber" class="appointment-payment-value">-</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <span class="appointment-payment-label">Chu tai khoan</span>
+                                            <div id="appointmentPaymentAccountName" class="appointment-payment-value">-</div>
+                                        </div>
+                                        <div>
+                                            <span class="appointment-payment-label">Noi dung chuyen khoan</span>
+                                            <div id="appointmentPaymentTransferContent" class="appointment-payment-value">-</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Dong</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</section>
+
+@section Scripts {
+    @if (!isStaffOrAdmin)
+    {
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const buttons = document.querySelectorAll('.btn-open-appointment-payment');
+                if (!buttons.length) {
+                    return;
+                }
+
+                const qrImage = document.getElementById('appointmentPaymentQrImage');
+                const qrEmpty = document.getElementById('appointmentPaymentQrEmpty');
+                const amount = document.getElementById('appointmentPaymentAmount');
+                const appointmentInfo = document.getElementById('appointmentPaymentAppointmentInfo');
+                const branchName = document.getElementById('appointmentPaymentBranchName');
+                const bankName = document.getElementById('appointmentPaymentBankName');
+                const accountNumber = document.getElementById('appointmentPaymentAccountNumber');
+                const accountName = document.getElementById('appointmentPaymentAccountName');
+                const transferContent = document.getElementById('appointmentPaymentTransferContent');
+
+                buttons.forEach(function (button) {
+                    button.addEventListener('click', function () {
+                        const appointmentId = button.getAttribute('data-appointment-id') || '';
+                        const petName = button.getAttribute('data-pet-name') || '-';
+                        const appointmentTime = button.getAttribute('data-appointment-time') || '-';
+                        const qrUrl = button.getAttribute('data-qr-url') || '';
+
+                        if (amount) amount.textContent = button.getAttribute('data-amount') || '0 đ';
+                        if (appointmentInfo) appointmentInfo.textContent = '#' + appointmentId + ' - ' + petName + ' - ' + appointmentTime;
+                        if (branchName) branchName.textContent = button.getAttribute('data-branch-name') || '-';
+                        if (bankName) bankName.textContent = button.getAttribute('data-bank-name') || '-';
+                        if (accountNumber) accountNumber.textContent = button.getAttribute('data-account-number') || '-';
+                        if (accountName) accountName.textContent = button.getAttribute('data-account-name') || '-';
+                        if (transferContent) transferContent.textContent = button.getAttribute('data-transfer-content') || '-';
+
+                        if (qrImage && qrEmpty) {
+                            if (qrUrl) {
+                                qrImage.src = qrUrl;
+                                qrImage.style.display = 'block';
+                                qrEmpty.style.display = 'none';
+                            } else {
+                                qrImage.removeAttribute('src');
+                                qrImage.style.display = 'none';
+                                qrEmpty.style.display = 'flex';
+                            }
+                        }
+
+                        if (window.jQuery) {
+                            window.jQuery('#appointmentPaymentModal').modal('show');
+                        }
+                    });
+                });
+            });
+        </script>
+    }
+}

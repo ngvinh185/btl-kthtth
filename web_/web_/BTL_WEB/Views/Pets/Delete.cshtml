@@ -1,0 +1,18 @@
+@model BTL_WEB.Models.Pet
+
+@{
+    ViewData["Title"] = "Delete Pet";
+}
+
+<h1 class="h3 mb-3">Delete Pet</h1>
+
+<div class="alert alert-warning">
+    Ban co chac muon xoa pet <strong>@Model.Name</strong>?
+</div>
+
+<form asp-action="Delete" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="PetId" />
+    <button type="submit" class="btn btn-danger">Delete</button>
+    <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+</form>

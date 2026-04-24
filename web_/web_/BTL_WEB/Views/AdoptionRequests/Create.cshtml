@@ -1,0 +1,20 @@
+@model BTL_WEB.ViewModels.Adoption.CreateAdoptionRequestViewModel
+@{
+    ViewData["Title"] = "Create Adoption Request";
+}
+<h1 class="h3 mb-3">Create Adoption Request</h1>
+<form asp-action="Create" method="post">
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+    <div class="mb-3">
+        <label asp-for="PetId" class="form-label">Pet</label>
+        <select asp-for="PetId" class="form-select" asp-items="Model.PetOptions"></select>
+        <span asp-validation-for="PetId" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Message" class="form-label"></label>
+        <textarea asp-for="Message" class="form-control" rows="4"></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Submit</button>
+    <a asp-action="Index" class="btn btn-secondary">Back</a>
+</form>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

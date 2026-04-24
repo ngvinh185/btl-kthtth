@@ -1,0 +1,99 @@
+@model BTL_WEB.Helpers.PaginatedList<BTL_WEB.Models.Appointment>
+@using Microsoft.AspNetCore.Mvc.Rendering
+@{
+    ViewData["Title"] = "Appointments";
+    var branches = ViewBag.Branches as List<SelectListItem> ?? new();
+    var currentPageSize = (int)(ViewBag.PageSize ?? 10);
+}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Appointments</h1>
+    <a asp-action="Create" class="btn btn-primary">Create Appointment</a>
+</div>
+<form method="get" class="row g-2 mb-3">
+    <div class="col-md-4">
+        <input name="keyword" value="@ViewBag.Keyword" class="form-control" placeholder="Search by user, pet, notes" />
+    </div>
+    <div class="col-md-3">
+        <select name="branchId" class="form-select" asp-items="branches">
+            <option value="">All branches</option>
+        </select>
+    </div>
+    <div class="col-md-2">
+        <select name="status" class="form-select">
+            <option value="">All status</option>
+            @foreach (var status in new[] { "Pending", "Confirmed", "Completed", "Cancelled" })
+            {
+                if ((string?)ViewBag.Status == status)
+                {
+                    <option value="@status" selected>@StatusDisplay.Label(status)</option>
+                }
+                else
+                {
+                    <option value="@status">@StatusDisplay.Label(status)</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="col-md-1">
+        <select name="pageSize" class="form-select">
+            @foreach (var size in new[] { 5, 10, 20 })
+            {
+                if (currentPageSize == size)
+                {
+                    <option value="@size" selected>@size</option>
+                }
+                else
+                {
+                    <option value="@size">@size</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="col-md-2">
+        <button type="submit" class="btn btn-outline-primary w-100">Filter</button>
+    </div>
+</form>
+<div class="mb-2 text-muted">Total: @Model.TotalItems appointments</div>
+<table class="table table-bordered">
+    <thead><tr><th>Date</th><th>User</th><th>Pet</th><th>Branch</th><th>Status</th><th>Services</th><th></th></tr></thead>
+    <tbody>
+    @foreach (var item in Model.Items)
+    {
+        <tr>
+            <td>@item.AppointmentDateTime.ToString("g")</td>
+            <td>@item.User.FullName</td>
+            <td>@item.Pet.Name</td>
+            <td>@item.Branch.BranchName</td>
+            <td><span class="badge @StatusDisplay.BadgeClass(item.Status)">@StatusDisplay.Label(item.Status)</span></td>
+            <td>@string.Join(", ", item.AppointmentServices.Select(x => x.Service.ServiceName))</td>
+            <td>
+                <a asp-action="Details" asp-route-id="@item.AppointmentId" class="btn btn-sm btn-outline-info">Details</a>
+                @if (User.IsInRole("Admin") || User.IsInRole("Staff"))
+                {
+                    <a asp-action="EditStatus" asp-route-id="@item.AppointmentId" class="btn btn-sm btn-outline-primary">Edit Status</a>
+                    <a asp-action="Delete" asp-route-id="@item.AppointmentId" class="btn btn-sm btn-outline-danger">Delete</a>
+                }
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>
+<div class="d-flex justify-content-between align-items-center">
+    <span>Page @Model.PageIndex / @Model.TotalPages</span>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary @(Model.HasPreviousPage ? "" : "disabled")"
+           asp-action="Index"
+           asp-route-page="@(Model.PageIndex - 1)"
+           asp-route-pageSize="@Model.PageSize"
+           asp-route-keyword="@ViewBag.Keyword"
+           asp-route-branchId="@ViewBag.BranchId"
+           asp-route-status="@ViewBag.Status">Previous</a>
+        <a class="btn btn-outline-secondary @(Model.HasNextPage ? "" : "disabled")"
+           asp-action="Index"
+           asp-route-page="@(Model.PageIndex + 1)"
+           asp-route-pageSize="@Model.PageSize"
+           asp-route-keyword="@ViewBag.Keyword"
+           asp-route-branchId="@ViewBag.BranchId"
+           asp-route-status="@ViewBag.Status">Next</a>
+    </div>
+</div>

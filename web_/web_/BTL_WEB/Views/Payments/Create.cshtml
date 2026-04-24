@@ -1,0 +1,52 @@
+@model BTL_WEB.ViewModels.Payments.CreatePaymentViewModel
+@{
+    ViewData["Title"] = "Create Payment";
+}
+<h1 class="h3 mb-3">Create Payment</h1>
+<form asp-action="Create" method="post">
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label asp-for="AppointmentId" class="form-label">Appointment</label>
+            <select asp-for="AppointmentId" class="form-select" asp-items="Model.AppointmentOptions">
+                <option value="">-- None --</option>
+            </select>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="ContractId" class="form-label">Adoption Contract</label>
+            <select asp-for="ContractId" class="form-select" asp-items="Model.ContractOptions">
+                <option value="">-- None --</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label asp-for="Amount" class="form-label"></label>
+            <input asp-for="Amount" class="form-control" />
+            <span asp-validation-for="Amount" class="text-danger"></span>
+        </div>
+        <div class="col-md-4">
+            <label asp-for="PaymentMethod" class="form-label"></label>
+            <select asp-for="PaymentMethod" class="form-select">
+                <option value="Cash">Cash</option>
+                <option value="Banking">Banking</option>
+                <option value="Momo">Momo</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label asp-for="PaymentStatus" class="form-label"></label>
+            <select asp-for="PaymentStatus" class="form-select">
+                <option value="Paid">Đã thanh toán</option>
+                <option value="Pending">Đang chờ</option>
+                <option value="Failed">Thất bại</option>
+            </select>
+        </div>
+        <div class="col-12">
+            <label asp-for="TransactionCode" class="form-label"></label>
+            <input asp-for="TransactionCode" class="form-control" />
+        </div>
+    </div>
+    <div class="mt-3">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <a asp-action="Index" class="btn btn-secondary">Back</a>
+    </div>
+</form>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

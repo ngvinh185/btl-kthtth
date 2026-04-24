@@ -1,0 +1,11 @@
+@model BTL_WEB.Models.Service
+@{
+    ViewData["Title"] = "Service Details";
+}
+<h1 class="h3 mb-3">@Model.ServiceName</h1>
+<p><strong>Category:</strong> @Model.Category.CategoryName</p>
+<p><strong>Price:</strong> @Model.Price.ToString("N0")</p>
+<p><strong>Duration:</strong> @Model.DurationMinutes minutes</p>
+<p><strong>Status:</strong> <span class="badge @StatusDisplay.BadgeClass(Model.Status)">@StatusDisplay.Label(Model.Status)</span></p>
+<p><strong>Description:</strong> @Model.Description</p>
+<a asp-action="Index" class="btn btn-secondary">Back</a>

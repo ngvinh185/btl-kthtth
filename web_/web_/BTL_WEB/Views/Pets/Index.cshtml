@@ -1,0 +1,180 @@
+@model BTL_WEB.Helpers.PaginatedList<BTL_WEB.Models.Pet>
+@using Microsoft.AspNetCore.Mvc.Rendering
+
+@{
+    ViewData["Title"] = "Pets";
+    var branches = ViewBag.Branches as List<SelectListItem> ?? new();
+    var currentPageSize = (int)(ViewBag.PageSize ?? 10);
+}
+
+<section class="ftco-section bg-light py-4">
+    <div class="container">
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+                <form method="get" class="row g-2 align-items-end">
+                    <div class="col-md-12 d-flex justify-content-between align-items-center flex-wrap gap-2 mb-1">
+                        <h1 class="h3 mb-0">Quản lý thú cưng</h1>
+                        @if (User.IsInRole("Admin") || User.IsInRole("Staff"))
+                        {
+                            <a asp-action="Create" class="btn btn-primary admin-btn">+ Thêm thú cưng</a>
+                        }
+                    </div>
+                    <div class="col-md-3">
+                        <input name="name" value="@ViewBag.Name" class="form-control admin-filter-control" placeholder="Tìm theo tên" />
+                    </div>
+                    <div class="col-md-2">
+                        <input name="species" value="@ViewBag.Species" class="form-control admin-filter-control" placeholder="Loài" />
+                    </div>
+                    <div class="col-md-3">
+                        <select name="branchId" class="form-select admin-filter-control" asp-items="branches">
+                            <option value="">Tất cả chi nhánh</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="adoptionStatus" class="form-select admin-filter-control">
+            <option value="">Tất cả trạng thái</option>
+            @if ((string?)ViewBag.AdoptionStatus == "Available")
+            {
+                <option value="Available" selected>Có sẵn</option>
+            }
+            else
+            {
+                <option value="Available">Có sẵn</option>
+            }
+            @if ((string?)ViewBag.AdoptionStatus == "Pending")
+            {
+                <option value="Pending" selected>Đang chờ</option>
+            }
+            else
+            {
+                <option value="Pending">Đang chờ</option>
+            }
+            @if ((string?)ViewBag.AdoptionStatus == "Adopted")
+            {
+                <option value="Adopted" selected>Đã nhận nuôi</option>
+            }
+            else
+            {
+                <option value="Adopted">Đã nhận nuôi</option>
+            }
+                        </select>
+                    </div>
+                    <div class="col-md-1">
+                        <select name="pageSize" class="form-select admin-filter-control">
+            @foreach (var size in new[] { 5, 10, 20 })
+            {
+                if (currentPageSize == size)
+                {
+                    <option value="@size" selected>@size</option>
+                }
+                else
+                {
+                    <option value="@size">@size</option>
+                }
+            }
+                        </select>
+                    </div>
+                    <div class="col-md-1">
+                        <button type="submit" class="btn btn-primary w-100 admin-btn">Lọc</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="mb-2 text-muted">Tổng: @Model.TotalItems thú cưng</div>
+
+        <div class="table-responsive bg-white shadow-sm rounded">
+<table class="table table-bordered table-striped mb-0 align-middle">
+    <thead>
+        <tr>
+            <th>Ảnh</th>
+            <th>Tên</th>
+            <th>Thông tin</th>
+            <th>Chi nhánh</th>
+            <th>Chủ sở hữu</th>
+            <th>Nhận nuôi</th>
+            <th>Trạng thái</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var item in Model.Items)
+    {
+        var primaryImage = item.PetImages?.FirstOrDefault(x => x.IsPrimary)?.ImageUrl
+            ?? item.PetImages?.FirstOrDefault()?.ImageUrl;
+        var imageUrl = string.IsNullOrWhiteSpace(primaryImage)
+            ? Url.Content("~/LayoutPetcare/images/gallery-1.jpg")
+            : (primaryImage.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                ? primaryImage
+                : Url.Content(primaryImage.StartsWith("/") ? $"~{primaryImage}" : $"~/{primaryImage}"));
+        <tr>
+            <td>
+                <img src="@imageUrl" alt="@item.Name" class="pet-thumb" onerror="this.onerror=null;this.src='@Url.Content("~/LayoutPetcare/images/gallery-1.jpg")';" />
+            </td>
+            <td>@item.Name</td>
+            <td>
+                <div><strong>Loài:</strong> @item.Species</div>
+                <div><strong>Giống:</strong> @(string.IsNullOrWhiteSpace(item.Breed) ? "-" : item.Breed)</div>
+                <div><strong>Giới tính:</strong> @(string.IsNullOrWhiteSpace(item.Gender) ? "-" : item.Gender)</div>
+            </td>
+            <td>@item.Branch.BranchName</td>
+            <td>@(item.Owner?.FullName ?? "-")</td>
+            <td><span class="badge @StatusDisplay.BadgeClass(item.AdoptionStatus)">@StatusDisplay.Label(item.AdoptionStatus)</span></td>
+            <td><span class="badge @StatusDisplay.BadgeClass(item.Status)">@StatusDisplay.Label(item.Status)</span></td>
+            <td class="text-nowrap">
+                <a asp-action="Details" asp-route-id="@item.PetId" class="btn btn-sm btn-outline-info">Chi tiết</a>
+                @if (User.IsInRole("Admin") || User.IsInRole("Staff"))
+                {
+                    <a asp-action="Edit" asp-route-id="@item.PetId" class="btn btn-sm btn-outline-primary">Chỉnh sửa</a>
+                    <a asp-action="Delete" asp-route-id="@item.PetId" class="btn btn-sm btn-outline-danger">Xóa</a>
+                }
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>
+        </div>
+
+<div class="d-flex justify-content-between align-items-center">
+    <span>Trang @Model.PageIndex / @Model.TotalPages</span>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary @(Model.HasPreviousPage ? "" : "disabled")"
+           asp-action="Index"
+           asp-route-page="@(Model.PageIndex - 1)"
+           asp-route-pageSize="@Model.PageSize"
+           asp-route-name="@ViewBag.Name"
+           asp-route-species="@ViewBag.Species"
+           asp-route-branchId="@ViewBag.BranchId"
+           asp-route-adoptionStatus="@ViewBag.AdoptionStatus">Trước</a>
+        <a class="btn btn-outline-secondary @(Model.HasNextPage ? "" : "disabled")"
+           asp-action="Index"
+           asp-route-page="@(Model.PageIndex + 1)"
+           asp-route-pageSize="@Model.PageSize"
+           asp-route-name="@ViewBag.Name"
+           asp-route-species="@ViewBag.Species"
+           asp-route-branchId="@ViewBag.BranchId"
+           asp-route-adoptionStatus="@ViewBag.AdoptionStatus">Sau</a>
+    </div>
+</div>
+    </div>
+</section>
+
+<style>
+    .admin-filter-control,
+    .admin-btn {
+        height: 42px;
+    }
+
+    .pet-thumb {
+        width: 72px;
+        height: 72px;
+        border-radius: 10px;
+        object-fit: cover;
+        border: 1px solid #e5e7eb;
+    }
+
+    .table td,
+    .table th {
+        vertical-align: middle;
+    }
+</style>

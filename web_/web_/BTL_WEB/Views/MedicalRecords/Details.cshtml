@@ -1,0 +1,12 @@
+@model BTL_WEB.Models.MedicalRecord
+@{
+    ViewData["Title"] = "Medical Record Details";
+}
+<h1 class="h3 mb-3">Medical Record #@Model.RecordId</h1>
+<p><strong>Pet:</strong> @Model.Pet.Name</p>
+<p><strong>Staff:</strong> @Model.Staff.User.FullName</p>
+<p><strong>Visit Date:</strong> @Model.VisitDate.ToString("g")</p>
+<p><strong>Diagnosis:</strong> @Model.Diagnosis</p>
+<p><strong>Treatment:</strong> @Model.Treatment</p>
+<p><strong>Notes:</strong> @Model.Notes</p>
+<a asp-action="Index" class="btn btn-secondary">Back</a>

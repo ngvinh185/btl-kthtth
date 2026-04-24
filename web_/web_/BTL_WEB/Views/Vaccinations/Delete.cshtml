@@ -1,0 +1,12 @@
+@model BTL_WEB.Models.Vaccination
+@{
+    ViewData["Title"] = "Delete Vaccination";
+}
+<h1 class="h3 mb-3">Delete Vaccination</h1>
+<div class="alert alert-warning">Xoa vaccination cua pet <strong>@Model.Pet.Name</strong>?</div>
+<form asp-action="Delete" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="VaccinationId" />
+    <button type="submit" class="btn btn-danger">Delete</button>
+    <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+</form>

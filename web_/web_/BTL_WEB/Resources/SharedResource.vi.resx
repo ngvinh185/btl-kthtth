@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, ...</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, ...</value>
+  </resheader>
+  <data name="Home" xml:space="preserve">
+    <value>Trang chu</value>
+  </data>
+  <data name="Dashboard" xml:space="preserve">
+    <value>Tong quan</value>
+  </data>
+  <data name="Pets" xml:space="preserve">
+    <value>Thu cung</value>
+  </data>
+  <data name="Appointments" xml:space="preserve">
+    <value>Lich hen</value>
+  </data>
+  <data name="Adoption" xml:space="preserve">
+    <value>Nhan nuoi</value>
+  </data>
+  <data name="Payments" xml:space="preserve">
+    <value>Thanh toan</value>
+  </data>
+  <data name="Login" xml:space="preserve">
+    <value>Dang nhap</value>
+  </data>
+  <data name="Logout" xml:space="preserve">
+    <value>Dang xuat</value>
+  </data>
+  <data name="Language" xml:space="preserve">
+    <value>Ngon ngu</value>
+  </data>
+  <data name="Vietnamese" xml:space="preserve">
+    <value>Tieng Viet</value>
+  </data>
+  <data name="English" xml:space="preserve">
+    <value>Tieng Anh</value>
+  </data>
+</root>

@@ -1,0 +1,19 @@
+@model BTL_WEB.Models.Payment
+@{
+    ViewData["Title"] = "Payment Details";
+}
+<h1 class="h3 mb-3">Payment #@Model.PaymentId</h1>
+<p><strong>Amount:</strong> @Model.Amount.ToString("N0")</p>
+<p><strong>Method:</strong> @Model.PaymentMethod</p>
+<p><strong>Status:</strong> <span class="badge @StatusDisplay.BadgeClass(Model.PaymentStatus)">@StatusDisplay.Label(Model.PaymentStatus)</span></p>
+<p><strong>Date:</strong> @Model.PaymentDate.ToString("g")</p>
+<p><strong>Transaction Code:</strong> @Model.TransactionCode</p>
+@if (Model.Appointment != null)
+{
+    <p><strong>Appointment:</strong> #@Model.AppointmentId - @Model.Appointment.User.FullName - @Model.Appointment.Pet.Name</p>
+}
+@if (Model.Contract != null)
+{
+    <p><strong>Contract:</strong> #@Model.ContractId - @Model.Contract.User.FullName - @Model.Contract.Pet.Name</p>
+}
+<a asp-action="Index" class="btn btn-secondary">Back</a>

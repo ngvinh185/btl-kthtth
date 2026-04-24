@@ -1,0 +1,12 @@
+@model BTL_WEB.Models.Service
+@{
+    ViewData["Title"] = "Delete Service";
+}
+<h1 class="h3 mb-3">Delete Service</h1>
+<div class="alert alert-warning">Xoa dich vu <strong>@Model.ServiceName</strong>?</div>
+<form asp-action="Delete" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="ServiceId" />
+    <button type="submit" class="btn btn-danger">Delete</button>
+    <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+</form>

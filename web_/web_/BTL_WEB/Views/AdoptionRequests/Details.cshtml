@@ -1,0 +1,102 @@
+@model BTL_WEB.Models.AdoptionRequest
+@{
+    ViewData["Title"] = "Adoption Request Details";
+    var reviewModel = ViewBag.ReviewModel as BTL_WEB.ViewModels.Adoption.ReviewAdoptionRequestViewModel;
+}
+<h1 class="h3 mb-3">Adoption Request #@Model.RequestId</h1>
+
+@if (TempData["Error"] is string error)
+{
+    <div class="alert alert-danger">@error</div>
+}
+@if (TempData["Success"] is string success)
+{
+    <div class="alert alert-success">@success</div>
+}
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="card"><div class="card-body">
+            <p><strong>User:</strong> @Model.User.FullName</p>
+            <p><strong>Pet:</strong> @Model.Pet.Name</p>
+            <p><strong>Status:</strong> <span class="badge @StatusDisplay.BadgeClass(Model.Status)">@StatusDisplay.Label(Model.Status)</span></p>
+            <p><strong>Message:</strong> @Model.Message</p>
+            <p><strong>Reviewed At:</strong> @(Model.ReviewedAt?.ToString("g") ?? "-")</p>
+            <p><strong>Reviewed By:</strong> @(Model.ReviewedByStaff?.User.FullName ?? "-")</p>
+        </div></div>
+    </div>
+    <div class="col-md-6">
+        <div class="card"><div class="card-body">
+            <p><strong>Pet Adoption Status:</strong> <span class="badge @StatusDisplay.BadgeClass(Model.Pet.AdoptionStatus)">@StatusDisplay.Label(Model.Pet.AdoptionStatus)</span></p>
+            @if (Model.AdoptionContract != null)
+            {
+                <p><strong>Contract:</strong> #@Model.AdoptionContract.ContractId</p>
+                <p><strong>Fee:</strong> @Model.AdoptionContract.AdoptionFee.ToString("N0")</p>
+                <p><strong>Terms:</strong> @Model.AdoptionContract.Terms</p>
+            }
+        </div></div>
+    </div>
+</div>
+
+@if ((User.IsInRole("Admin") || User.IsInRole("Staff")) && Model.Status == "Pending")
+{
+    <div class="card mt-3">
+        <div class="card-body">
+            <h2 class="h5">Review Request</h2>
+            <div id="adoption-review-message"></div>
+            <form asp-action="Review" method="post" class="row g-3" id="adoption-review-form">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="RequestId" value="@reviewModel?.RequestId" />
+                <div class="col-md-4">
+                    <label class="form-label">Action</label>
+                    <select name="Action" class="form-select">
+                        <option value="Approve">Approve</option>
+                        <option value="Reject">Reject</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Adoption Fee</label>
+                    <input name="AdoptionFee" class="form-control" value="0" />
+                </div>
+                <div class="col-md-12">
+                    <label class="form-label">Terms</label>
+                    <textarea name="Terms" class="form-control" rows="3"></textarea>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">Submit Review</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+<div class="mt-3">
+    <a asp-action="Index" class="btn btn-secondary">Back</a>
+</div>
+@section Scripts {
+    <script>
+        (() => {
+            const form = document.getElementById('adoption-review-form');
+            if (!form) return;
+
+            const messageBox = document.getElementById('adoption-review-message');
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    body: new FormData(form)
+                });
+
+                const payload = await response.json().catch(() => null);
+                if (!response.ok || !payload?.success) {
+                    messageBox.innerHTML = `<div class="alert alert-danger">${payload?.message ?? 'Review that bai.'}</div>`;
+                    return;
+                }
+
+                messageBox.innerHTML = `<div class="alert alert-success">${payload.message}</div>`;
+                window.location.reload();
+            });
+        })();
+    </script>
+}

@@ -1,0 +1,27 @@
+@model IEnumerable<BTL_WEB.Models.Vaccination>
+@{
+    ViewData["Title"] = "Vaccinations";
+}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Vaccinations</h1>
+    <a asp-action="Create" asp-route-petId="@ViewBag.PetId" class="btn btn-primary">Add Vaccination</a>
+</div>
+<table class="table table-bordered">
+    <thead><tr><th>Date</th><th>Pet</th><th>Vaccine</th><th>Next Due</th><th></th></tr></thead>
+    <tbody>
+    @foreach (var item in Model)
+    {
+        <tr>
+            <td>@item.VaccinationDate.ToString("yyyy-MM-dd")</td>
+            <td>@item.Pet.Name</td>
+            <td>@item.VaccineName</td>
+            <td>@item.NextDueDate?.ToString("yyyy-MM-dd")</td>
+            <td>
+                <a asp-action="Details" asp-route-id="@item.VaccinationId" class="btn btn-sm btn-outline-info">Details</a>
+                <a asp-action="Edit" asp-route-id="@item.VaccinationId" class="btn btn-sm btn-outline-primary">Edit</a>
+                <a asp-action="Delete" asp-route-id="@item.VaccinationId" class="btn btn-sm btn-outline-danger">Delete</a>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>

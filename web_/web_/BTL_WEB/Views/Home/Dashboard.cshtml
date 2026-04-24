@@ -1,0 +1,321 @@
+@model BTL_WEB.Models.ViewModels.UserDashboardViewModel
+
+@{
+    ViewData["Title"] = "Dashboard";
+    Layout = "_Layout";
+
+    string ResolveImageUrl(string? imageUrl)
+    {
+        if (string.IsNullOrWhiteSpace(imageUrl))
+        {
+            return Url.Content("~/LayoutPetcare/images/gallery-1.jpg");
+        }
+
+        imageUrl = imageUrl.Trim().Replace("\\", "/");
+        if (Uri.IsWellFormedUriString(imageUrl, UriKind.Absolute))
+        {
+            return imageUrl;
+        }
+
+        if (imageUrl.StartsWith("~/"))
+        {
+            return Url.Content(imageUrl);
+        }
+
+        if (imageUrl.StartsWith("wwwroot/"))
+        {
+            return Url.Content($"~/{imageUrl["wwwroot/".Length..]}");
+        }
+
+        return imageUrl.StartsWith("/") ? Url.Content($"~{imageUrl}") : Url.Content($"~/{imageUrl}");
+    }
+}
+
+<section class="ftco-section bg-light user-dashboard-page">
+    <div class="container-fluid px-lg-5">
+        <div class="row">
+            <div class="col-lg-3 mb-3">
+                <div class="dashboard-sidebar shadow-sm">
+                    <h5 class="mb-4">PetCareHub</h5>
+                    <a href="#" class="active js-dashboard-nav" data-target="overview-section">Tổng quan</a>
+                    <a href="#" class="js-dashboard-nav" data-target="my-pets-section">Thú cưng của tôi</a>
+                    <a href="#" class="js-dashboard-nav" data-target="upcoming-appointments-section">Lịch hẹn của tôi</a>
+                    <a href="#" class="js-dashboard-nav" data-target="payment-history-section">Lịch sử thanh toán</a>
+                    <a asp-controller="Home" asp-action="Profile">Hồ sơ cá nhân</a>
+                </div>
+            </div>
+
+            <div class="col-lg-9">
+                <div class="dashboard-content shadow-sm">
+                    <div class="dashboard-header">
+                        <div>
+                            <h4 class="mb-0">Xin chào, @Model.FullName</h4>
+                            <small class="text-muted">@Model.Email</small>
+                        </div>
+                        <div class="dashboard-header-right">
+                            <span class="notify-badge"><i class="fa fa-bell"></i> 2</span>
+                            <div class="avatar-circle">@Model.FullName.Substring(0, 1).ToUpper()</div>
+                        </div>
+                    </div>
+
+                    <div id="overview-section" class="dashboard-panel mt-4 active">
+                        <h5 class="mb-3">Tổng quan của tôi</h5>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <div class="dashboard-stat-box">
+                                    <div class="dashboard-stat-number">@Model.Pets.Count</div>
+                                    <div class="dashboard-stat-label">Thú cưng</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="dashboard-stat-box">
+                                    <div class="dashboard-stat-number">@Model.UpcomingAppointments.Count</div>
+                                    <div class="dashboard-stat-label">Lịch hẹn sắp tới</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="dashboard-stat-box">
+                                    <div class="dashboard-stat-number">@(Model.Pets.Count(p => string.Equals(p.AdoptionStatus, "Adopted", StringComparison.OrdinalIgnoreCase)))</div>
+                                    <div class="dashboard-stat-label">Đã nhận nuôi</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="my-pets-section" class="dashboard-panel mt-4">
+                        <h5 class="mb-3">Thú cưng của tôi</h5>
+                        <div class="row">
+                            @if (Model.Pets.Count == 0)
+                            {
+                                <div class="col-12">
+                                    <div class="alert alert-light border text-center text-muted mb-0">Chưa có thú cưng nào.</div>
+                                </div>
+                            }
+                            else
+                            {
+                                @foreach (var pet in Model.Pets)
+                                {
+                                    <div class="col-md-6 mb-3">
+                                        <div class="dashboard-pet-card">
+                                            <div class="dashboard-pet-header">
+                                                <img src="@ResolveImageUrl(pet.PrimaryImageUrl)"
+                                                     alt="@pet.Name"
+                                                     class="dashboard-pet-avatar"
+                                                     onerror="this.onerror=null;this.src='@Url.Content("~/LayoutPetcare/images/gallery-1.jpg")';" />
+                                                <div>
+                                                    <h6 class="mb-1">@pet.Name</h6>
+                                                    <div class="text-muted small">Mã thú cưng: #@pet.PetId</div>
+                                                </div>
+                                            </div>
+
+                                            <div class="dashboard-pet-info mt-2">
+                                                <div><strong>Loài:</strong> @pet.Species</div>
+                                                <div><strong>Giống:</strong> @(string.IsNullOrWhiteSpace(pet.Breed) ? "Chưa cập nhật" : pet.Breed)</div>
+                                                <div><strong>Giới tính:</strong> @(string.IsNullOrWhiteSpace(pet.Gender) ? "Chưa cập nhật" : pet.Gender)</div>
+                                                <div><strong>Chi nhánh:</strong> @(string.IsNullOrWhiteSpace(pet.BranchName) ? "Chưa cập nhật" : pet.BranchName)</div>
+                                                <div><strong>Sức khỏe:</strong> @(string.IsNullOrWhiteSpace(pet.HealthStatus) ? "Chưa cập nhật" : pet.HealthStatus)</div>
+                                                <div><strong>Tiêm chủng:</strong> @(string.IsNullOrWhiteSpace(pet.VaccinationStatus) ? "Chưa cập nhật" : pet.VaccinationStatus)</div>
+                                            </div>
+
+                                            <div class="mb-2">
+                                                <span class="badge @StatusDisplay.BadgeClass(pet.Status)">@StatusDisplay.Label(pet.Status)</span>
+                                            </div>
+                                            <div class="dashboard-pet-adoption mt-2">
+                                                Nhận nuôi: <span class="badge @StatusDisplay.BadgeClass(pet.AdoptionStatus)">@StatusDisplay.Label(pet.AdoptionStatus)</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+
+                    <div id="upcoming-appointments-section" class="dashboard-panel mt-4">
+                        <h5 class="mb-3">Lịch hẹn sắp tới</h5>
+                        <div class="table-responsive">
+                            <table class="table table-striped table-bordered bg-white mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Ngày giờ</th>
+                                        <th>Thú cưng</th>
+                                        <th>Dịch vụ</th>
+                                        <th>Trạng thái</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (Model.UpcomingAppointments.Count == 0)
+                                    {
+                                        <tr><td colspan="4" class="text-center text-muted">Không có lịch hẹn sắp tới.</td></tr>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var item in Model.UpcomingAppointments)
+                                        {
+                                            <tr>
+                                                <td>@item.AppointmentDateTime.ToString("dd/MM/yyyy HH:mm")</td>
+                                                <td>@item.PetName</td>
+                                                <td>@item.ServiceName</td>
+                                                <td><span class="badge @StatusDisplay.BadgeClass(item.Status)">@StatusDisplay.Label(item.Status)</span></td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="payment-history-section" class="dashboard-panel mt-4">
+                        <h5 class="mb-3">Lịch sử thanh toán</h5>
+                        <div class="alert alert-light border text-muted mb-0">Hiện chưa có dữ liệu thanh toán để hiển thị.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+    .user-dashboard-page .dashboard-sidebar {
+        background: #146c2e;
+        color: #fff;
+        border-radius: 12px;
+        padding: 20px;
+        min-height: 100%;
+    }
+
+    .dashboard-sidebar a {
+        display: block;
+        color: #dff3e4;
+        padding: 10px 12px;
+        border-radius: 8px;
+        margin-bottom: 6px;
+        text-decoration: none;
+    }
+
+    .dashboard-sidebar a.active,
+    .dashboard-sidebar a:hover {
+        background: rgba(255, 255, 255, .14);
+        color: #fff;
+    }
+
+    .dashboard-content {
+        background: #fff;
+        border-radius: 12px;
+        padding: 20px;
+    }
+
+    .dashboard-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid #edf1ed;
+        padding-bottom: 14px;
+    }
+
+    .dashboard-header-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .avatar-circle {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: #28a745;
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+    }
+
+    .notify-badge {
+        background: #f3f6f3;
+        border: 1px solid #dce6dd;
+        padding: 5px 10px;
+        border-radius: 999px;
+        font-size: .9rem;
+    }
+
+    .dashboard-panel {
+        display: none;
+    }
+
+    .dashboard-panel.active {
+        display: block;
+    }
+
+    .dashboard-stat-box {
+        border: 1px solid #edf1ed;
+        border-radius: 10px;
+        padding: 14px;
+        background: #fafdfb;
+    }
+
+    .dashboard-stat-number {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1c7a38;
+    }
+
+    .dashboard-stat-label {
+        color: #5f6b64;
+        font-size: .9rem;
+    }
+
+    .dashboard-pet-card {
+        border: 1px solid #edf1ed;
+        border-radius: 10px;
+        padding: 12px;
+        background: #fff;
+        height: 100%;
+    }
+
+    .dashboard-pet-header {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+    }
+
+    .dashboard-pet-avatar {
+        width: 62px;
+        height: 62px;
+        border-radius: 10px;
+        object-fit: cover;
+        border: 1px solid #e3ece5;
+    }
+
+    .dashboard-pet-info {
+        font-size: .9rem;
+        color: #4a5750;
+        display: grid;
+        gap: .2rem;
+    }
+
+    .dashboard-pet-adoption {
+        border-top: 1px dashed #e5ece7;
+        padding-top: .55rem;
+    }
+</style>
+
+<script>
+    (() => {
+        const navItems = document.querySelectorAll('.js-dashboard-nav');
+        const panels = document.querySelectorAll('.dashboard-panel');
+
+        navItems.forEach((item) => {
+            item.addEventListener('click', (event) => {
+                event.preventDefault();
+                const target = item.getAttribute('data-target');
+                if (!target) return;
+
+                navItems.forEach((x) => x.classList.remove('active'));
+                panels.forEach((panel) => panel.classList.remove('active'));
+
+                item.classList.add('active');
+                document.getElementById(target)?.classList.add('active');
+            });
+        });
+    })();
+</script>

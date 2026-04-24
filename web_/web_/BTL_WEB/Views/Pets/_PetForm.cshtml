@@ -1,0 +1,118 @@
+@model BTL_WEB.ViewModels.Pets.PetFormViewModel
+
+<form asp-action="@(Model.PetId.HasValue ? "Edit" : "Create")" method="post" enctype="multipart/form-data" class="compact-form-shell">
+    @if (Model.PetId.HasValue)
+    {
+        <input asp-for="PetId" type="hidden" />
+    }
+
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+    <div class="row g-2">
+        <div class="col-md-6">
+            <label asp-for="Name" class="form-label">Tên thú cưng</label>
+            <input asp-for="Name" class="form-control" placeholder="Ví dụ: Mèo Mun" />
+            <span asp-validation-for="Name" class="text-danger"></span>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="Species" class="form-label">Loài</label>
+            <input asp-for="Species" class="form-control" placeholder="Ví dụ: Dog, Cat" />
+            <span asp-validation-for="Species" class="text-danger"></span>
+        </div>
+        <div class="col-md-5">
+            <label asp-for="Breed" class="form-label">Giống</label>
+            <input asp-for="Breed" class="form-control" placeholder="Ví dụ: Poodle" />
+        </div>
+        <div class="col-md-3">
+            <label asp-for="Gender" class="form-label">Giới tính</label>
+            <select asp-for="Gender" class="form-select">
+                <option value="">Chưa cập nhật</option>
+                <option value="Male">Đực</option>
+                <option value="Female">Cái</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label asp-for="DateOfBirth" class="form-label">Ngày sinh</label>
+            <input asp-for="DateOfBirth" class="form-control" type="date" />
+        </div>
+        <div class="col-md-4">
+            <label asp-for="Color" class="form-label">Màu lông</label>
+            <input asp-for="Color" class="form-control" placeholder="Ví dụ: Nâu" />
+        </div>
+        <div class="col-md-4">
+            <label asp-for="Weight" class="form-label">Cân nặng (kg)</label>
+            <input asp-for="Weight" class="form-control" placeholder="Ví dụ: 4.5" />
+        </div>
+        <div class="col-md-4">
+            <label asp-for="HealthStatus" class="form-label">Tình trạng sức khỏe</label>
+            <input asp-for="HealthStatus" class="form-control" placeholder="Ví dụ: Khỏe mạnh" />
+        </div>
+        <div class="col-md-4">
+            <label asp-for="VaccinationStatus" class="form-label">Tiêm chủng</label>
+            <input asp-for="VaccinationStatus" class="form-control" placeholder="Ví dụ: Đã tiêm đủ" />
+        </div>
+        <div class="col-md-4">
+            <label asp-for="AdoptionStatus" class="form-label">Trạng thái nhận nuôi</label>
+            <select asp-for="AdoptionStatus" class="form-select">
+                <option value="Available">Có sẵn</option>
+                <option value="Pending">Đang chờ</option>
+                <option value="Adopted">Đã nhận nuôi</option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label asp-for="Status" class="form-label">Trạng thái hoạt động</label>
+            <select asp-for="Status" class="form-select">
+                <option value="Active">Đang hoạt động</option>
+                <option value="Inactive">Ngừng hoạt động</option>
+            </select>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="BranchId" class="form-label">Chi nhánh</label>
+            <select asp-for="BranchId" class="form-select" asp-items="Model.BranchOptions"></select>
+            <span asp-validation-for="BranchId" class="text-danger"></span>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="OwnerId" class="form-label">Chủ sở hữu</label>
+            <select asp-for="OwnerId" class="form-select" asp-items="Model.OwnerOptions"></select>
+        </div>
+        <div class="col-12">
+            <label asp-for="Description" class="form-label">Mô tả</label>
+            <textarea asp-for="Description" class="form-control" rows="2" placeholder="Nhập mô tả ngắn..."></textarea>
+        </div>
+        <div class="col-12">
+            <label asp-for="ImageFiles" class="form-label">Ảnh thú cưng</label>
+            <input asp-for="ImageFiles" type="file" class="form-control" multiple accept=".jpg,.jpeg,.png" />
+        </div>
+    </div>
+
+    <div class="mt-3 d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Lưu</button>
+        <a asp-action="Index" class="btn btn-secondary">Quay lại</a>
+    </div>
+</form>
+
+<style>
+    .compact-form-shell {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 0 .5rem;
+    }
+
+    .compact-form-shell .form-control,
+    .compact-form-shell .form-select {
+        width: 100%;
+        height: 44px;
+        border-radius: 8px;
+        font-size: 1rem;
+    }
+
+    .compact-form-shell textarea.form-control {
+        height: auto;
+        min-height: 90px;
+    }
+
+    .compact-form-shell .form-label {
+        margin-bottom: .25rem;
+        font-weight: 600;
+    }
+</style>

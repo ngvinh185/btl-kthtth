@@ -1,0 +1,12 @@
+@model BTL_WEB.Models.Vaccination
+@{
+    ViewData["Title"] = "Vaccination Details";
+}
+<h1 class="h3 mb-3">Vaccination #@Model.VaccinationId</h1>
+<p><strong>Pet:</strong> @Model.Pet.Name</p>
+<p><strong>Vaccine:</strong> @Model.VaccineName</p>
+<p><strong>Vaccination Date:</strong> @Model.VaccinationDate.ToString("yyyy-MM-dd")</p>
+<p><strong>Next Due:</strong> @Model.NextDueDate?.ToString("yyyy-MM-dd")</p>
+<p><strong>Staff:</strong> @Model.Staff.User.FullName</p>
+<p><strong>Notes:</strong> @Model.Notes</p>
+<a asp-action="Index" class="btn btn-secondary">Back</a>

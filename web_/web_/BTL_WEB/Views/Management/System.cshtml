@@ -1,0 +1,726 @@
+@model BTL_WEB.Models.ViewModels.SystemPageViewModel
+@using System.Text.Json
+
+@{
+    ViewData["Title"] = "Quan ly he thong";
+    Layout = "_Layout";
+    var canManageStaff = User.IsInRole(RoleNames.Admin);
+    var branchOptions = ViewBag.BranchOptions as IEnumerable<dynamic> ?? [];
+
+    var userEventsJson = JsonSerializer.Serialize(Model.Users.Select(x => new
+    {
+        createdAt = x.CreatedAt.ToString("yyyy-MM-dd"),
+        type = "user"
+    }));
+
+    var staffEventsJson = JsonSerializer.Serialize(Model.Staff.Select(x => new
+    {
+        createdAt = x.CreatedAt.ToString("yyyy-MM-dd"),
+        type = "staff"
+    }));
+
+    var paymentEventsJson = JsonSerializer.Serialize(Model.Payments.Select(x => new
+    {
+        paymentDate = x.PaymentDate.ToString("yyyy-MM-dd"),
+        amount = x.Amount,
+        status = x.PaymentStatus
+    }));
+
+    var topServicesJson = JsonSerializer.Serialize(Model.TopServices.Select(x => new
+    {
+        serviceName = x.ServiceName,
+        totalQuantity = x.TotalQuantity,
+        totalRevenue = x.TotalRevenue
+    }));
+}
+
+<section class="ftco-section bg-light system-dashboard-page">
+    <div class="container">
+        @if (TempData["SuccessMessage"] is string successMessage)
+        {
+            <div class="alert alert-success">@successMessage</div>
+        }
+        @if (TempData["ErrorMessage"] is string errorMessage)
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        <div class="row justify-content-center mb-3">
+            <div class="col-md-10 text-center heading-section">
+                <h2 class="mb-2">Tong quan he thong</h2>
+                <p class="text-muted mb-0">Thong ke va quan ly danh sach User/Staff</p>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-12">
+                <div class="card border-0 shadow-sm p-3">
+                    <form method="get" class="row">
+                        <div class="col-md-9 mb-2">
+                            <input class="form-control" name="keyword" value="@Model.Keyword" placeholder="Tim theo username, ho ten, email" />
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <button type="submit" class="btn btn-primary btn-block">Loc he thong</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-lg-6 mb-3 mb-lg-0">
+                <div class="card border-0 shadow-sm p-3 h-100">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                        <h5 class="mb-0">Bieu do so luong tai khoan</h5>
+                        <div class="d-flex align-items-center gap-2">
+                            <label for="systemChartMode" class="mb-0 text-muted small">Thong ke theo</label>
+                            <select id="systemChartMode" class="form-select form-select-sm chart-mode-select">
+                                <option value="day">Ngay</option>
+                                <option value="month" selected>Thang</option>
+                                <option value="year">Nam</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="system-chart-wrapper">
+                        <canvas id="systemUserChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm p-3 h-100">
+                    <h5 class="mb-2">Bieu do doanh thu</h5>
+                    <div class="system-chart-wrapper">
+                        <canvas id="systemRevenueChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm p-3 mb-4">
+            <h5 class="mb-2">Bieu do dich vu noi troi</h5>
+            <div class="system-chart-wrapper system-chart-wrapper-short">
+                <canvas id="systemTopServiceChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm p-3 mb-4">
+            <div class="system-tabs-header mb-3" role="tablist" aria-label="Danh sach he thong">
+                <button type="button" class="system-tab-link active" data-tab-target="system-users-tab">Danh sach User</button>
+                <button type="button" class="system-tab-link" data-tab-target="system-staff-tab">Danh sach Staff</button>
+            </div>
+
+            <div id="system-users-tab" class="system-tab-content active">
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered bg-white mb-0">
+                        <thead>
+                            <tr>
+                                <th>UserID</th>
+                                <th>Username</th>
+                                <th>FullName</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Hanh dong</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.Users.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted">Khong co du lieu nguoi dung.</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var item in Model.Users)
+                                {
+                                    <tr>
+                                        <td>@item.UserId</td>
+                                        <td>@item.Username</td>
+                                        <td>@item.FullName</td>
+                                        <td>@item.RoleName</td>
+                                        <td><span class="badge @StatusDisplay.BadgeClass(item.Status)">@StatusDisplay.Label(item.Status)</span></td>
+                                        <td class="system-action-cell">
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-primary js-edit-user"
+                                                    data-user-id="@item.UserId"
+                                                    data-username="@item.Username"
+                                                    data-full-name="@item.FullName"
+                                                    data-email="@item.Email"
+                                                    data-status="@item.Status">Sua</button>
+                                            <form method="post" asp-action="DeleteSystemUser" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="userId" value="@item.UserId" />
+                                                <input type="hidden" name="keyword" value="@Model.Keyword" />
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Xac nhan xoa user nay?');">Xoa</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="system-staff-tab" class="system-tab-content">
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered bg-white mb-0">
+                        <thead>
+                            <tr>
+                                <th>StaffID</th>
+                                <th>UserID</th>
+                                <th>FullName</th>
+                                <th>BranchID</th>
+                                <th>Branch</th>
+                                <th>Position</th>
+                                <th>Status</th>
+                                @if (canManageStaff)
+                                {
+                                    <th>Hanh dong</th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.Staff.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="@(canManageStaff ? 8 : 7)" class="text-center text-muted">Khong co du lieu staff.</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var item in Model.Staff)
+                                {
+                                    <tr>
+                                        <td>@item.StaffId</td>
+                                        <td>@item.UserId</td>
+                                        <td>@item.FullName</td>
+                                        <td>@item.BranchId</td>
+                                        <td>@item.BranchName</td>
+                                        <td>@item.Position</td>
+                                        <td><span class="badge @StatusDisplay.BadgeClass(item.Status)">@StatusDisplay.Label(item.Status)</span></td>
+                                        @if (canManageStaff)
+                                        {
+                                            <td class="system-action-cell">
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-primary js-edit-staff"
+                                                        data-staff-id="@item.StaffId"
+                                                        data-full-name="@item.FullName"
+                                                        data-branch-id="@item.BranchId"
+                                                        data-position="@item.Position"
+                                                        data-status="@item.Status">Sua</button>
+                                                <form method="post" asp-action="DeleteSystemStaff" class="d-inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="staffId" value="@item.StaffId" />
+                                                    <input type="hidden" name="keyword" value="@Model.Keyword" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Xac nhan xoa staff nay?');">Xoa</button>
+                                                </form>
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="systemUserModal" class="system-modal" style="display:none;">
+            <div class="system-modal-backdrop"></div>
+            <div class="system-modal-dialog card border-0 shadow">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">Sua user</h5>
+                        <button type="button" class="close js-close-system-modal" data-target="systemUserModal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+
+                    <form method="post" asp-action="UpdateSystemUser" class="row g-2">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" id="editSystemUserId" name="userId" />
+                        <input type="hidden" name="keyword" value="@Model.Keyword" />
+
+                        <div class="col-md-6">
+                            <label class="small text-muted mb-1" for="editSystemUsername">Username</label>
+                            <input class="form-control" id="editSystemUsername" name="username" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="small text-muted mb-1" for="editSystemFullName">Full name</label>
+                            <input class="form-control" id="editSystemFullName" name="fullName" required />
+                        </div>
+                        <div class="col-md-8">
+                            <label class="small text-muted mb-1" for="editSystemEmail">Email</label>
+                            <input class="form-control" id="editSystemEmail" name="email" type="email" required />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="small text-muted mb-1" for="editSystemUserStatus">Status</label>
+                            <select class="form-control" id="editSystemUserStatus" name="status">
+                                <option value="Active">Active</option>
+                                <option value="Inactive">Inactive</option>
+                            </select>
+                        </div>
+                        <div class="col-12 d-flex justify-content-end gap-2 mt-2">
+                            <button type="button" class="btn btn-outline-secondary js-close-system-modal" data-target="systemUserModal">Dong</button>
+                            <button type="submit" class="btn btn-primary">Luu</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div id="systemStaffModal" class="system-modal" style="display:none;">
+            <div class="system-modal-backdrop"></div>
+            <div class="system-modal-dialog card border-0 shadow">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">Sua staff</h5>
+                        <button type="button" class="close js-close-system-modal" data-target="systemStaffModal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+
+                    <form method="post" asp-action="UpdateSystemStaff" class="row g-2">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" id="editSystemStaffId" name="staffId" />
+                        <input type="hidden" name="keyword" value="@Model.Keyword" />
+
+                        <div class="col-md-6">
+                            <label class="small text-muted mb-1" for="editSystemStaffFullName">Full name</label>
+                            <input class="form-control" id="editSystemStaffFullName" name="fullName" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="small text-muted mb-1" for="editSystemStaffPosition">Position</label>
+                            <input class="form-control" id="editSystemStaffPosition" name="position" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="small text-muted mb-1" for="editSystemStaffBranchId">Branch</label>
+                            <select class="form-control" id="editSystemStaffBranchId" name="branchId" required>
+                                @foreach (var branch in branchOptions)
+                                {
+                                    <option value="@branch.BranchId">@branch.BranchName</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="small text-muted mb-1" for="editSystemStaffStatus">Status</label>
+                            <select class="form-control" id="editSystemStaffStatus" name="status">
+                                <option value="Active">Active</option>
+                                <option value="Inactive">Inactive</option>
+                            </select>
+                        </div>
+                        <div class="col-12 d-flex justify-content-end gap-2 mt-2">
+                            <button type="button" class="btn btn-outline-secondary js-close-system-modal" data-target="systemStaffModal">Dong</button>
+                            <button type="submit" class="btn btn-primary">Luu</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12 mb-4" id="system-payments">
+                <div class="card border-0 shadow-sm p-3 h-100">
+                    <h5 class="mb-3">Payment</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered bg-white mb-0">
+                            <thead>
+                                <tr>
+                                    <th>PaymentID</th>
+                                    <th>AppointmentID</th>
+                                    <th>ContractID</th>
+                                    <th>Amount</th>
+                                    <th>Method</th>
+                                    <th>Date</th>
+                                    <th>PaymentStatus</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (Model.Payments.Count == 0)
+                                {
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted">Khong co du lieu thanh toan.</td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    @foreach (var item in Model.Payments)
+                                    {
+                                        <tr>
+                                            <td>@item.PaymentId</td>
+                                            <td>@item.AppointmentId</td>
+                                            <td>@item.ContractId</td>
+                                            <td>@item.Amount.ToString("N0") đ</td>
+                                            <td>@item.PaymentMethod</td>
+                                            <td>@item.PaymentDate.ToString("dd/MM/yyyy HH:mm")</td>
+                                            <td><span class="badge @StatusDisplay.BadgeClass(item.PaymentStatus)">@StatusDisplay.Label(item.PaymentStatus)</span></td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+    .chart-mode-select {
+        width: 130px;
+    }
+
+    .system-chart-wrapper {
+        height: 310px;
+    }
+
+    .system-chart-wrapper-short {
+        height: 340px;
+    }
+
+    .system-tabs-header {
+        display: flex;
+        gap: .75rem;
+        border-bottom: 2px solid #edf0f2;
+        padding-bottom: .45rem;
+    }
+
+    .system-tab-link {
+        border: 0;
+        background: transparent;
+        color: #2d2f35;
+        font-weight: 600;
+        padding: .45rem .85rem;
+        border-bottom: 3px solid transparent;
+    }
+
+    .system-tab-link.active {
+        color: #00bd56;
+        border-bottom-color: #00bd56;
+    }
+
+    .system-tab-content {
+        display: none;
+    }
+
+    .system-tab-content.active {
+        display: block;
+    }
+
+    .system-action-cell {
+        white-space: nowrap;
+        min-width: 180px;
+    }
+
+    .system-action-cell .btn {
+        margin-right: .25rem;
+    }
+
+    .system-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 1060;
+    }
+
+    .system-modal-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, .35);
+    }
+
+    .system-modal-dialog {
+        position: relative;
+        width: min(640px, calc(100vw - 2rem));
+        margin: 5vh auto;
+        z-index: 1;
+        border-radius: 12px;
+    }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    (() => {
+        const tabButtons = document.querySelectorAll('.system-tab-link');
+        const tabContents = document.querySelectorAll('.system-tab-content');
+        const userModal = document.getElementById('systemUserModal');
+        const staffModal = document.getElementById('systemStaffModal');
+        const editSystemUserId = document.getElementById('editSystemUserId');
+        const editSystemUsername = document.getElementById('editSystemUsername');
+        const editSystemFullName = document.getElementById('editSystemFullName');
+        const editSystemEmail = document.getElementById('editSystemEmail');
+        const editSystemUserStatus = document.getElementById('editSystemUserStatus');
+        const editSystemStaffId = document.getElementById('editSystemStaffId');
+        const editSystemStaffFullName = document.getElementById('editSystemStaffFullName');
+        const editSystemStaffPosition = document.getElementById('editSystemStaffPosition');
+        const editSystemStaffBranchId = document.getElementById('editSystemStaffBranchId');
+        const editSystemStaffStatus = document.getElementById('editSystemStaffStatus');
+
+        tabButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                const targetId = button.getAttribute('data-tab-target');
+                if (!targetId) return;
+
+                tabButtons.forEach((btn) => btn.classList.remove('active'));
+                tabContents.forEach((tab) => tab.classList.remove('active'));
+
+                button.classList.add('active');
+                document.getElementById(targetId)?.classList.add('active');
+            });
+        });
+
+        function openModal(modal) {
+            if (modal) {
+                modal.style.display = 'block';
+            }
+        }
+
+        function closeModal(modal) {
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        document.querySelectorAll('.js-edit-user').forEach((button) => {
+            button.addEventListener('click', () => {
+                editSystemUserId.value = button.dataset.userId || '';
+                editSystemUsername.value = button.dataset.username || '';
+                editSystemFullName.value = button.dataset.fullName || '';
+                editSystemEmail.value = button.dataset.email || '';
+                editSystemUserStatus.value = button.dataset.status || 'Active';
+                openModal(userModal);
+            });
+        });
+
+        document.querySelectorAll('.js-edit-staff').forEach((button) => {
+            button.addEventListener('click', () => {
+                editSystemStaffId.value = button.dataset.staffId || '';
+                editSystemStaffFullName.value = button.dataset.fullName || '';
+                editSystemStaffPosition.value = button.dataset.position || '';
+                editSystemStaffBranchId.value = button.dataset.branchId || '';
+                editSystemStaffStatus.value = button.dataset.status || 'Active';
+                openModal(staffModal);
+            });
+        });
+
+        document.querySelectorAll('.js-close-system-modal').forEach((button) => {
+            button.addEventListener('click', () => {
+                const target = button.getAttribute('data-target');
+                if (!target) return;
+                closeModal(document.getElementById(target));
+            });
+        });
+
+        userModal?.querySelector('.system-modal-backdrop')?.addEventListener('click', () => closeModal(userModal));
+        staffModal?.querySelector('.system-modal-backdrop')?.addEventListener('click', () => closeModal(staffModal));
+
+        const userEvents = @Html.Raw(userEventsJson);
+        const staffEvents = @Html.Raw(staffEventsJson);
+        const allEvents = [...userEvents, ...staffEvents].filter(x => x.createdAt);
+        const chartCanvas = document.getElementById('systemUserChart');
+        const revenueCanvas = document.getElementById('systemRevenueChart');
+        const topServiceCanvas = document.getElementById('systemTopServiceChart');
+        const modeSelect = document.getElementById('systemChartMode');
+        const paymentEvents = @Html.Raw(paymentEventsJson);
+        const topServices = @Html.Raw(topServicesJson);
+
+        if (!chartCanvas || !revenueCanvas || !topServiceCanvas || !modeSelect || !window.Chart) return;
+
+        function toGroupKey(dateText, mode) {
+            const date = new Date(dateText);
+            if (Number.isNaN(date.getTime())) return null;
+
+            const yyyy = date.getFullYear();
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+
+            if (mode === 'year') return `${yyyy}`;
+            if (mode === 'month') return `${yyyy}-${mm}`;
+            return `${yyyy}-${mm}-${dd}`;
+        }
+
+        function buildSeries(mode) {
+            const userMap = new Map();
+            const staffMap = new Map();
+
+            allEvents.forEach((item) => {
+                const key = toGroupKey(item.createdAt, mode);
+                if (!key) return;
+
+                const target = item.type === 'staff' ? staffMap : userMap;
+                target.set(key, (target.get(key) || 0) + 1);
+            });
+
+            const labels = Array.from(new Set([...userMap.keys(), ...staffMap.keys()])).sort();
+            return {
+                labels,
+                users: labels.map((x) => userMap.get(x) || 0),
+                staff: labels.map((x) => staffMap.get(x) || 0)
+            };
+        }
+
+        function buildRevenueSeries(mode) {
+            const revenueMap = new Map();
+
+            paymentEvents.forEach((item) => {
+                if (!item.paymentDate) return;
+
+                const statusText = (item.status || '').toLowerCase();
+                const canCount = !statusText || statusText.includes('paid') || statusText.includes('success') || statusText.includes('completed');
+                if (!canCount) return;
+
+                const key = toGroupKey(item.paymentDate, mode);
+                if (!key) return;
+
+                revenueMap.set(key, (revenueMap.get(key) || 0) + Number(item.amount || 0));
+            });
+
+            const labels = Array.from(revenueMap.keys()).sort();
+            return {
+                labels,
+                revenues: labels.map((x) => revenueMap.get(x) || 0)
+            };
+        }
+
+        const initial = buildSeries(modeSelect.value);
+        const initialRevenue = buildRevenueSeries(modeSelect.value);
+
+        const chart = new Chart(chartCanvas, {
+            type: 'line',
+            data: {
+                labels: initial.labels,
+                datasets: [
+                    {
+                        label: 'User',
+                        data: initial.users,
+                        borderColor: '#00bd56',
+                        backgroundColor: 'rgba(0, 189, 86, .15)',
+                        tension: .28,
+                        fill: true
+                    },
+                    {
+                        label: 'Staff',
+                        data: initial.staff,
+                        borderColor: '#007bff',
+                        backgroundColor: 'rgba(0, 123, 255, .12)',
+                        tension: .28,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        });
+
+        const revenueChart = new Chart(revenueCanvas, {
+            type: 'line',
+            data: {
+                labels: initialRevenue.labels,
+                datasets: [
+                    {
+                        label: 'Doanh thu',
+                        data: initialRevenue.revenues,
+                        borderColor: '#ff8a00',
+                        backgroundColor: 'rgba(255, 138, 0, .18)',
+                        tension: .28,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => `Doanh thu: ${Number(context.parsed.y || 0).toLocaleString('vi-VN')} đ`
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: (value) => `${Number(value).toLocaleString('vi-VN')} đ`
+                        }
+                    }
+                }
+            }
+        });
+
+        new Chart(topServiceCanvas, {
+            type: 'bar',
+            data: {
+                labels: topServices.map(x => x.serviceName),
+                datasets: [
+                    {
+                        label: 'Luot su dung',
+                        data: topServices.map(x => Number(x.totalQuantity || 0)),
+                        backgroundColor: 'rgba(0, 123, 255, .7)',
+                        borderRadius: 6,
+                        maxBarThickness: 48
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            afterLabel: (context) => {
+                                const item = topServices[context.dataIndex];
+                                return item ? `Doanh thu: ${Number(item.totalRevenue || 0).toLocaleString('vi-VN')} đ` : '';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        });
+
+        modeSelect.addEventListener('change', () => {
+            const next = buildSeries(modeSelect.value);
+            const nextRevenue = buildRevenueSeries(modeSelect.value);
+
+            chart.data.labels = next.labels;
+            chart.data.datasets[0].data = next.users;
+            chart.data.datasets[1].data = next.staff;
+            chart.update();
+
+            revenueChart.data.labels = nextRevenue.labels;
+            revenueChart.data.datasets[0].data = nextRevenue.revenues;
+            revenueChart.update();
+        });
+    })();
+</script>

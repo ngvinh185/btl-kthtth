@@ -1,0 +1,364 @@
+@using Microsoft.AspNetCore.Http
+@using BTL_WEB.Helpers
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>@ViewData["Title"] - PetCareHub</title>
+
+    <link href="https://fonts.googleapis.com/css?family=Montserrat:200,300,400,500,600,700,800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" />
+    <link rel="stylesheet" href="~/LayoutPetcare/css/animate.css" />
+    <link rel="stylesheet" href="~/LayoutPetcare/css/owl.carousel.min.css" />
+    <link rel="stylesheet" href="~/LayoutPetcare/css/owl.theme.default.min.css" />
+    <link rel="stylesheet" href="~/LayoutPetcare/css/magnific-popup.css" />
+    <link rel="stylesheet" href="~/LayoutPetcare/css/bootstrap-datepicker.css" />
+    <link rel="stylesheet" href="~/LayoutPetcare/css/jquery.timepicker.css" />
+    <link rel="stylesheet" href="~/LayoutPetcare/css/flaticon.css" />
+    <link rel="stylesheet" href="~/LayoutPetcare/css/style.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+
+    <style>
+        .user-main-nav .nav-link,
+        .user-main-nav .dropdown-toggle {
+            white-space: nowrap;
+        }
+
+        .user-main-nav .user-search {
+            margin-bottom: 0;
+        }
+
+        .user-main-nav .user-search .input-group {
+            flex-wrap: nowrap;
+            align-items: stretch;
+        }
+
+        .user-main-nav .user-search .input-group.input-group-sm > .form-control {
+            min-width: 220px;
+            height: 36px !important;
+            border-radius: 999px 0 0 999px;
+            border-right: 0;
+            margin: 0;
+            padding: 0 .9rem;
+            font-size: .95rem;
+        }
+
+        .user-main-nav .user-search .input-group.input-group-sm > .input-group-append > .btn {
+            width: 36px;
+            min-width: 36px;
+            height: 36px !important;
+            border-radius: 0 999px 999px 0;
+            margin: 0;
+            padding: 0;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .user-main-nav .user-search .btn .fa {
+            font-size: 14px;
+            line-height: 1;
+        }
+
+        .user-avatar-img,
+        .user-avatar-fallback {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #d8f0de;
+        }
+
+        .user-avatar-fallback {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #28a745;
+            color: #fff;
+            font-weight: 700;
+            font-size: .9rem;
+        }
+
+        .quick-create-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            display: none;
+        }
+
+        .quick-create-modal.show {
+            display: block;
+        }
+
+        .quick-create-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, .45);
+        }
+
+        .quick-create-dialog {
+            position: relative;
+            width: min(960px, calc(100vw - 2rem));
+            height: min(82vh, 760px);
+            margin: 4vh auto;
+            background: #fff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 22px 60px rgba(0, 0, 0, .25);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .quick-create-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: .7rem 1rem;
+            border-bottom: 1px solid #edf0f2;
+        }
+
+        .quick-create-frame {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            flex: 1 1 auto;
+        }
+
+        body.iframe-modal-view .user-main-nav .navbar-toggler {
+            display: none !important;
+        }
+
+        body.iframe-modal-view .user-main-nav {
+            padding-top: .35rem;
+            padding-bottom: .35rem;
+        }
+    </style>
+</head>
+<body>
+    @{
+        var isLoggedIn = Context.User.Identity?.IsAuthenticated == true;
+        var displayName = Context.Session.GetString(ClaimNames.FullName)
+            ?? Context.User.FindFirst(ClaimNames.FullName)?.Value
+            ?? Context.User.Identity?.Name
+            ?? "Khách";
+        var avatarUrl = Context.Session.GetString("ProfileAvatarUrl");
+        var avatarInitial = string.IsNullOrWhiteSpace(displayName) ? "U" : displayName.Trim().Substring(0, 1).ToUpper();
+        var isAdmin = Context.User.IsInRole(RoleNames.Admin);
+        var isStaff = Context.User.IsInRole(RoleNames.Staff);
+        var isStaffOrAdmin = isAdmin || isStaff;
+        var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
+        var currentAction = ViewContext.RouteData.Values["action"]?.ToString();
+        var hideSearchBox = string.Equals(currentController, "Account", StringComparison.OrdinalIgnoreCase)
+            && (string.Equals(currentAction, "Login", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(currentAction, "Register", StringComparison.OrdinalIgnoreCase));
+    }
+
+    <nav class="navbar navbar-expand-lg navbar-dark ftco_navbar bg-dark ftco-navbar-light user-main-nav" id="ftco-navbar">
+        <div class="container">
+            <a class="navbar-brand" asp-controller="Home" asp-action="Index"><span class="flaticon-pawprint-1 mr-2"></span>PetCareHub</a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#ftco-nav" aria-controls="ftco-nav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="fa fa-bars"></span> Menu
+            </button>
+            <div class="collapse navbar-collapse" id="ftco-nav">
+                <ul class="navbar-nav mr-auto align-items-lg-center">
+                    @if (isLoggedIn && isAdmin)
+                    {
+                        <li class="nav-item @(currentController == "Management" && currentAction == "System" ? "active" : string.Empty)">
+                            <a asp-controller="Management" asp-action="System" class="nav-link">Tổng quan</a>
+                        </li>
+                        <li class="nav-item @(currentController == "Services" ? "active" : string.Empty)">
+                            <a asp-controller="Services" asp-action="Index" class="nav-link">Dịch vụ</a>
+                        </li>
+                        <li class="nav-item @(currentController == "Management" && currentAction == "Pets" ? "active" : string.Empty)">
+                            <a asp-controller="Management" asp-action="Pets" class="nav-link">Thú cưng</a>
+                        </li>
+                        <li class="nav-item @(currentController == "Management" && currentAction == "Appointments" ? "active" : string.Empty)">
+                            <a asp-controller="Management" asp-action="Appointments" class="nav-link">QL lịch hẹn</a>
+                        </li>
+                        <li class="nav-item @(currentController == "Management" && currentAction == "Adoptions" ? "active" : string.Empty)">
+                            <a asp-controller="Management" asp-action="Adoptions" class="nav-link">QL nhận nuôi</a>
+                        </li>
+                    }
+                    else if (isLoggedIn && isStaff)
+                    {
+                        <li class="nav-item @(currentController == "Services" && currentAction == "Catalog" ? "active" : string.Empty)">
+                            <a asp-controller="Services" asp-action="Catalog" class="nav-link">Dịch vụ</a>
+                        </li>
+                        <li class="nav-item @(currentController == "Management" && currentAction == "Pets" ? "active" : string.Empty)">
+                            <a asp-controller="Management" asp-action="Pets" class="nav-link">Thú cưng</a>
+                        </li>
+                        <li class="nav-item @(currentController == "Management" && currentAction == "Appointments" ? "active" : string.Empty)">
+                            <a asp-controller="Management" asp-action="Appointments" class="nav-link">QL lịch hẹn</a>
+                        </li>
+                        <li class="nav-item @(currentController == "Management" && currentAction == "Adoptions" ? "active" : string.Empty)">
+                            <a asp-controller="Management" asp-action="Adoptions" class="nav-link">QL nhận nuôi</a>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="nav-item @(currentController == "Services" && currentAction == "Catalog" ? "active" : string.Empty)">
+                            <a asp-controller="Services" asp-action="Catalog" class="nav-link">Dịch vụ</a>
+                        </li>
+                        <li class="nav-item @(currentController == "Management" && currentAction == "Pets" ? "active" : string.Empty)">
+                            <a asp-controller="Management" asp-action="Pets" class="nav-link">Thú cưng</a>
+                        </li>
+                        <li class="nav-item @(currentController == "Management" && currentAction == "Appointments" ? "active" : string.Empty)">
+                            <a asp-controller="Management" asp-action="Appointments" class="nav-link">Lịch hẹn</a>
+                        </li>
+                        <li class="nav-item @(currentController == "Home" && currentAction == "Profile" ? "active" : string.Empty)">
+                            <a asp-controller="Home" asp-action="Profile" class="nav-link">Hồ sơ cá nhân</a>
+                        </li>
+                    }
+                </ul>
+
+                @if (!hideSearchBox)
+                {
+                    <form class="form-inline user-search mx-lg-3 my-2 my-lg-0" method="get" asp-controller="Management" asp-action="Pets">
+                        <div class="input-group input-group-sm">
+                            <input type="search" class="form-control" name="searchTerm" placeholder="Tìm thú cưng" aria-label="Tìm thú cưng" />
+                            <div class="input-group-append">
+                                <button class="btn btn-primary" type="submit" aria-label="Tìm thú cưng">
+                                    <span class="fa fa-search"></span>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                }
+
+                <ul class="navbar-nav align-items-lg-center ml-lg-auto">
+                    @if (isLoggedIn)
+                    {
+                        <li class="nav-item dropdown">
+                            <a href="#" class="nav-link dropdown-toggle d-flex align-items-center" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                @if (!string.IsNullOrWhiteSpace(avatarUrl))
+                                {
+                                    <img src="@avatarUrl" alt="Avatar" class="user-avatar-img mr-2" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';" />
+                                    <span class="user-avatar-fallback mr-2" style="display:none;">@avatarInitial</span>
+                                }
+                                else
+                                {
+                                    <span class="user-avatar-fallback mr-2">@avatarInitial</span>
+                                }
+                                <span class="text-nowrap">@displayName</span>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-right">
+                                @if (isAdmin)
+                                {
+                                    <a class="dropdown-item" asp-controller="Management" asp-action="System">Tổng quan</a>
+                                    <a class="dropdown-item" asp-controller="Services" asp-action="Index">Dịch vụ</a>
+                                    <a class="dropdown-item" asp-controller="Management" asp-action="Pets">Thú cưng</a>
+                                    <a class="dropdown-item" asp-controller="Management" asp-action="Appointments">Quản lý lịch hẹn</a>
+                                    <a class="dropdown-item" asp-controller="Management" asp-action="Adoptions">Quản lý nhận nuôi</a>
+                                }
+                                else if (isStaff)
+                                {
+                                    <a class="dropdown-item" asp-controller="Services" asp-action="Catalog">Dịch vụ</a>
+                                    <a class="dropdown-item" asp-controller="Management" asp-action="Pets">Thú cưng</a>
+                                    <a class="dropdown-item" asp-controller="Management" asp-action="Appointments">Quản lý lịch hẹn</a>
+                                    <a class="dropdown-item" asp-controller="Management" asp-action="Adoptions">Quản lý nhận nuôi</a>
+                                }
+                                else
+                                {
+                                    <a class="dropdown-item" asp-controller="Services" asp-action="Catalog">Dịch vụ</a>
+                                    <a class="dropdown-item" asp-controller="Management" asp-action="Pets">Thú cưng</a>
+                                    <a class="dropdown-item" asp-controller="Management" asp-action="Appointments">Lịch hẹn của tôi</a>
+                                    <a class="dropdown-item" asp-controller="Home" asp-action="Dashboard">Tổng quan</a>
+                                }
+                                <div class="dropdown-divider"></div>
+                                <a class="dropdown-item" asp-controller="Home" asp-action="Profile">Chỉnh sửa hồ sơ</a>
+                                <form asp-controller="Account" asp-action="Logout" method="post" class="m-0">
+                                    <button type="submit" class="dropdown-item">Đăng xuất</button>
+                                </form>
+                            </div>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="nav-item"><a asp-controller="Account" asp-action="Login" class="nav-link">Đăng nhập</a></li>
+                        <li class="nav-item"><a asp-controller="Account" asp-action="Register" class="nav-link">Đăng ký</a></li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    @RenderBody()
+
+    <div id="quickCreateModal" class="quick-create-modal" aria-hidden="true">
+        <div class="quick-create-backdrop"></div>
+        <div class="quick-create-dialog">
+            <div class="quick-create-header">
+                <strong id="quickCreateTitle">Thêm mới</strong>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="quickCreateClose">Đóng</button>
+            </div>
+            <iframe id="quickCreateFrame" class="quick-create-frame" src="about:blank" loading="lazy"></iframe>
+        </div>
+    </div>
+
+    <script src="~/LayoutPetcare/js/jquery.min.js"></script>
+    <script src="~/LayoutPetcare/js/jquery-migrate-3.0.1.min.js"></script>
+    <script src="~/LayoutPetcare/js/popper.min.js"></script>
+    <script src="~/LayoutPetcare/js/bootstrap.min.js"></script>
+    <script src="~/LayoutPetcare/js/jquery.easing.1.3.js"></script>
+    <script src="~/LayoutPetcare/js/jquery.waypoints.min.js"></script>
+    <script src="~/LayoutPetcare/js/jquery.stellar.min.js"></script>
+    <script src="~/LayoutPetcare/js/jquery.animateNumber.min.js"></script>
+    <script src="~/LayoutPetcare/js/bootstrap-datepicker.js"></script>
+    <script src="~/LayoutPetcare/js/jquery.timepicker.min.js"></script>
+    <script src="~/LayoutPetcare/js/owl.carousel.min.js"></script>
+    <script src="~/LayoutPetcare/js/jquery.magnific-popup.min.js"></script>
+    <script src="~/LayoutPetcare/js/scrollax.min.js"></script>
+    <script src="~/LayoutPetcare/js/main.js"></script>
+    <script>
+        if (window.self !== window.top) {
+            document.body.classList.add('iframe-modal-view');
+        }
+    </script>
+    <script>
+        (() => {
+            const modal = document.getElementById('quickCreateModal');
+            const frame = document.getElementById('quickCreateFrame');
+            const closeBtn = document.getElementById('quickCreateClose');
+            const backdrop = modal?.querySelector('.quick-create-backdrop');
+            const title = document.getElementById('quickCreateTitle');
+
+            if (!modal || !frame || !closeBtn || !backdrop || !title) return;
+
+            function closeModal() {
+                modal.classList.remove('show');
+                modal.setAttribute('aria-hidden', 'true');
+                frame.src = 'about:blank';
+            }
+
+            function openModal(url, modalTitle) {
+                title.textContent = modalTitle || 'Thêm mới';
+                frame.src = url;
+                modal.classList.add('show');
+                modal.setAttribute('aria-hidden', 'false');
+            }
+
+            document.addEventListener('click', (event) => {
+                const trigger = event.target.closest('.js-open-create-modal');
+                if (!trigger) return;
+
+                event.preventDefault();
+                const url = trigger.getAttribute('data-create-url') || trigger.getAttribute('href');
+                if (!url) return;
+
+                openModal(url, trigger.getAttribute('data-modal-title'));
+            });
+
+            closeBtn.addEventListener('click', closeModal);
+            backdrop.addEventListener('click', closeModal);
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && modal.classList.contains('show')) {
+                    closeModal();
+                }
+            });
+        })();
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

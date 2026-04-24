@@ -1,0 +1,13 @@
+@model BTL_WEB.ViewModels.Pets.PetFormViewModel
+
+@{
+    ViewData["Title"] = "Chỉnh sửa thú cưng";
+}
+
+<h1 class="h4 mb-3">Chỉnh sửa thú cưng</h1>
+
+<partial name="_PetForm" model="Model" />
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

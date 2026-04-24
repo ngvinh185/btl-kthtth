@@ -1,0 +1,330 @@
+@model BTL_WEB.Helpers.PaginatedList<BTL_WEB.Models.Service>
+@using Microsoft.AspNetCore.Mvc.Rendering
+@{
+    ViewData["Title"] = "Services";
+    var categories = ViewBag.Categories as List<SelectListItem> ?? new();
+    var currentPageSize = (int)(ViewBag.PageSize ?? 10);
+}
+
+<section class="ftco-section service-admin-page py-4">
+    <div class="container">
+        <div class="service-admin-shell">
+            <div class="service-admin-toolbar d-flex justify-content-between align-items-center flex-wrap mb-3">
+                <h1 class="service-admin-title mb-2 mb-md-0">Quản lý dịch vụ</h1>
+                <div class="d-flex gap-2">
+                    <a asp-action="Create"
+                       class="btn btn-success service-admin-control service-action-btn js-open-create-modal"
+                       data-create-url="@Url.Action("Create", "Services")"
+                       data-modal-title="Thêm dịch vụ">
+                        + Thêm dịch vụ
+                    </a>
+                </div>
+            </div>
+
+            <form method="get" class="row align-items-end service-filter-form mb-2">
+                <input type="hidden" name="pageSize" value="@currentPageSize" />
+
+                <div class="col-lg-3 col-md-6 mb-2">
+                    <label class="service-filter-label">Tìm kiếm</label>
+                    <input name="keyword" value="@ViewBag.Keyword" class="form-control service-admin-control" placeholder="Nhập tên dịch vụ" />
+                </div>
+
+                <div class="col-lg-2 col-md-6 mb-2">
+                    <label class="service-filter-label">Danh mục</label>
+                    <select name="categoryId" class="form-select service-admin-control" asp-items="categories">
+                        <option value="">Tất cả danh mục</option>
+                    </select>
+                </div>
+
+                <div class="col-lg-2 col-md-6 mb-2">
+                    <label class="service-filter-label">Giá</label>
+                    <select name="priceRange" class="form-select service-admin-control">
+                        <option value="">Tất cả mức giá</option>
+                        @if ((string?)ViewBag.PriceRange == "10000-100000")
+                        {
+                            <option value="10000-100000" selected>10,000 - 100,000</option>
+                        }
+                        else
+                        {
+                            <option value="10000-100000">10,000 - 100,000</option>
+                        }
+
+                        @if ((string?)ViewBag.PriceRange == "100000-500000")
+                        {
+                            <option value="100000-500000" selected>100,000 - 500,000</option>
+                        }
+                        else
+                        {
+                            <option value="100000-500000">100,000 - 500,000</option>
+                        }
+
+                        @if ((string?)ViewBag.PriceRange == "500000-plus")
+                        {
+                            <option value="500000-plus" selected>500,000 trở lên</option>
+                        }
+                        else
+                        {
+                            <option value="500000-plus">500,000 trở lên</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-lg-3 col-md-6 mb-2">
+                    <label class="service-filter-label">Trạng thái</label>
+                    <select name="status" class="form-select service-admin-control">
+                        <option value="">Tất cả trạng thái</option>
+                        @if ((string?)ViewBag.Status == "Active")
+                        {
+                            <option value="Active" selected>Đang hoạt động</option>
+                        }
+                        else
+                        {
+                            <option value="Active">Đang hoạt động</option>
+                        }
+                        @if ((string?)ViewBag.Status == "Inactive")
+                        {
+                            <option value="Inactive" selected>Ngừng hoạt động</option>
+                        }
+                        else
+                        {
+                            <option value="Inactive">Ngừng hoạt động</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-lg-2 col-md-6 mb-2">
+                    <button type="submit" class="btn btn-success w-100 service-admin-control service-filter-btn">Lọc</button>
+                </div>
+            </form>
+
+            <div class="service-total mb-3">Tổng: @Model.TotalItems dịch vụ</div>
+
+            <div class="row">
+                @if (Model.Items.Count == 0)
+                {
+                    <div class="col-12">
+                        <div class="alert alert-light border text-center text-muted">Không có dịch vụ phù hợp bộ lọc.</div>
+                    </div>
+                }
+                else
+                {
+                    @foreach (var item in Model.Items)
+                    {
+                        <div class="col-xl-3 col-lg-4 col-md-6 mb-3">
+                            <div class="card h-100 service-item-card">
+                                <div class="card-body d-flex flex-column">
+                                    <h5 class="service-card-title mb-2">@item.ServiceName</h5>
+                                    <p class="service-card-desc mb-2">@(string.IsNullOrWhiteSpace(item.Description) ? "Chưa có mô tả" : item.Description)</p>
+                                    <p class="mb-1"><strong>Danh mục:</strong> @item.Category.CategoryName</p>
+                                    <p class="mb-1"><strong>Giá:</strong> @item.Price.ToString("N0") đ</p>
+                                    <p class="mb-2"><strong>Thời lượng:</strong> @item.DurationMinutes phút</p>
+                                    <p class="mb-3"><span class="badge service-status-badge @StatusDisplay.BadgeClass(item.Status)">@StatusDisplay.Label(item.Status)</span></p>
+
+                                    <div class="mt-auto d-flex gap-2">
+                                        <a asp-action="Edit" asp-route-id="@item.ServiceId" class="btn btn-outline-primary flex-fill service-card-action">Chỉnh sửa</a>
+                                        <a asp-action="Delete" asp-route-id="@item.ServiceId" class="btn btn-outline-danger flex-fill service-card-action">Xóa</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+
+            @if (Model.TotalPages > 1)
+            {
+                var startPage = Math.Max(1, Model.PageIndex - 2);
+                var endPage = Math.Min(Model.TotalPages, Model.PageIndex + 2);
+
+                if (endPage - startPage < 4)
+                {
+                    if (startPage == 1)
+                    {
+                        endPage = Math.Min(Model.TotalPages, startPage + 4);
+                    }
+                    else if (endPage == Model.TotalPages)
+                    {
+                        startPage = Math.Max(1, endPage - 4);
+                    }
+                }
+
+                <nav class="mt-2" aria-label="Phân trang dịch vụ">
+                    <ul class="pagination justify-content-center service-pagination mb-0">
+                        <li class="page-item @(Model.HasPreviousPage ? string.Empty : "disabled")">
+                            <a class="page-link"
+                               asp-action="Index"
+                               asp-route-page="@(Model.PageIndex - 1)"
+                               asp-route-pageSize="@Model.PageSize"
+                               asp-route-keyword="@ViewBag.Keyword"
+                               asp-route-categoryId="@ViewBag.CategoryId"
+                               asp-route-priceRange="@ViewBag.PriceRange"
+                               asp-route-status="@ViewBag.Status">Trước</a>
+                        </li>
+
+                        @if (startPage > 1)
+                        {
+                            <li class="page-item">
+                                <a class="page-link"
+                                   asp-action="Index"
+                                   asp-route-page="1"
+                                   asp-route-pageSize="@Model.PageSize"
+                                   asp-route-keyword="@ViewBag.Keyword"
+                                   asp-route-categoryId="@ViewBag.CategoryId"
+                                   asp-route-priceRange="@ViewBag.PriceRange"
+                                   asp-route-status="@ViewBag.Status">1</a>
+                            </li>
+
+                            @if (startPage > 2)
+                            {
+                                <li class="page-item disabled"><span class="page-link">...</span></li>
+                            }
+                        }
+
+                        @for (int i = startPage; i <= endPage; i++)
+                        {
+                            <li class="page-item @(i == Model.PageIndex ? "active" : string.Empty)">
+                                <a class="page-link"
+                                   asp-action="Index"
+                                   asp-route-page="@i"
+                                   asp-route-pageSize="@Model.PageSize"
+                                   asp-route-keyword="@ViewBag.Keyword"
+                                   asp-route-categoryId="@ViewBag.CategoryId"
+                                   asp-route-priceRange="@ViewBag.PriceRange"
+                                   asp-route-status="@ViewBag.Status">@i</a>
+                            </li>
+                        }
+
+                        @if (endPage < Model.TotalPages)
+                        {
+                            @if (endPage < Model.TotalPages - 1)
+                            {
+                                <li class="page-item disabled"><span class="page-link">...</span></li>
+                            }
+
+                            <li class="page-item">
+                                <a class="page-link"
+                                   asp-action="Index"
+                                   asp-route-page="@Model.TotalPages"
+                                   asp-route-pageSize="@Model.PageSize"
+                                   asp-route-keyword="@ViewBag.Keyword"
+                                   asp-route-categoryId="@ViewBag.CategoryId"
+                                   asp-route-priceRange="@ViewBag.PriceRange"
+                                   asp-route-status="@ViewBag.Status">@Model.TotalPages</a>
+                            </li>
+                        }
+
+                        <li class="page-item @(Model.HasNextPage ? string.Empty : "disabled")">
+                            <a class="page-link"
+                               asp-action="Index"
+                               asp-route-page="@(Model.PageIndex + 1)"
+                               asp-route-pageSize="@Model.PageSize"
+                               asp-route-keyword="@ViewBag.Keyword"
+                               asp-route-categoryId="@ViewBag.CategoryId"
+                               asp-route-priceRange="@ViewBag.PriceRange"
+                               asp-route-status="@ViewBag.Status">Sau</a>
+                        </li>
+                    </ul>
+                </nav>
+            }
+        </div>
+    </div>
+</section>
+
+<style>
+    .service-admin-page {
+        background: #f3f4f8;
+    }
+
+    .service-admin-title {
+        font-size: 2rem;
+        font-weight: 600;
+        color: #1e1f25;
+    }
+
+    .service-filter-label {
+        display: block;
+        margin-bottom: .35rem;
+        font-size: 1.1rem;
+        font-weight: 500;
+        color: #2d2f35;
+    }
+
+    .service-admin-control {
+        height: 44px;
+        border-radius: .5rem;
+    }
+
+    .service-filter-form .form-control.service-admin-control,
+    .service-filter-form .form-select.service-admin-control {
+        height: 44px;
+        min-height: 44px;
+        line-height: 1.2;
+    }
+
+    .service-action-btn,
+    .service-filter-btn {
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .02em;
+    }
+
+    .service-filter-btn {
+        min-width: 130px;
+    }
+
+    .service-total {
+        font-size: 1.35rem;
+        color: #2d2f35;
+    }
+
+    .service-item-card {
+        border: 1px solid #e5e7ec;
+        border-radius: 14px;
+        box-shadow: 0 4px 12px rgba(20, 22, 30, .06);
+    }
+
+    .service-card-title {
+        font-size: 2rem;
+        font-weight: 600;
+        color: #1f2127;
+    }
+
+    .service-card-desc {
+        color: #555b66;
+        min-height: 28px;
+    }
+
+    .service-status-badge {
+        font-size: .85rem;
+        border-radius: 999px;
+        padding: .35rem .7rem;
+    }
+
+    .service-card-action {
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .service-pagination .page-link {
+        border-radius: .4rem;
+        margin: 0 .15rem;
+        min-width: 40px;
+        text-align: center;
+    }
+
+    .service-pagination .page-item.active .page-link {
+        background-color: #28a745;
+        border-color: #28a745;
+        color: #fff;
+    }
+
+    @@media (max-width: 991.98px) {
+        .service-admin-title {
+            font-size: 1.75rem;
+        }
+
+        .service-card-title {
+            font-size: 1.7rem;
+        }
+    }
+</style>

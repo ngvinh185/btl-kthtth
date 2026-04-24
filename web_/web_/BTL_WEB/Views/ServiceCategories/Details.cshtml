@@ -1,0 +1,14 @@
+@model BTL_WEB.Models.ServiceCategory
+@{
+    ViewData["Title"] = "Category Details";
+}
+<h1 class="h3 mb-3">@Model.CategoryName</h1>
+<p>@Model.Description</p>
+<h2 class="h5">Services</h2>
+<ul>
+@foreach (var item in Model.Services)
+{
+    <li>@item.ServiceName - @item.Price.ToString("N0")</li>
+}
+</ul>
+<a asp-action="Index" class="btn btn-secondary">Back</a>

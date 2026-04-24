@@ -1,0 +1,354 @@
+@model BTL_WEB.Models.ViewModels.PetDetailViewModel
+@inject IWebHostEnvironment WebHostEnvironment
+
+@{
+    ViewData["Title"] = "Chi tiết thú cưng";
+    Layout = "~/Views/Shared/_LayoutPetcarehub.cshtml";
+
+    var imageExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".webp", ".gif" };
+
+    var dogDirectoryCandidates = new[]
+    {
+        new global::System.IO.DirectoryInfo($"{WebHostEnvironment.WebRootPath}\\img\\img\\img dog"),
+        new global::System.IO.DirectoryInfo($"{WebHostEnvironment.WebRootPath}\\img\\img dog")
+    };
+    var catDirectoryCandidates = new[]
+    {
+        new global::System.IO.DirectoryInfo($"{WebHostEnvironment.WebRootPath}\\img\\img\\img cat"),
+        new global::System.IO.DirectoryInfo($"{WebHostEnvironment.WebRootPath}\\img\\img cat")
+    };
+
+    string ToWebPath(global::System.IO.FileInfo fileInfo)
+    {
+        var relativePath = fileInfo.FullName
+            .Replace(WebHostEnvironment.WebRootPath, string.Empty)
+            .TrimStart('\\', '/')
+            .Replace('\\', '/');
+
+        return "/" + string.Join('/', relativePath
+            .Split('/', StringSplitOptions.RemoveEmptyEntries)
+            .Select(Uri.EscapeDataString));
+    }
+
+    var dogFallbackImages = (dogDirectoryCandidates.FirstOrDefault(d => d.Exists)?.GetFiles() ?? Array.Empty<global::System.IO.FileInfo>())
+        .Where(x => imageExtensions.Contains(x.Extension))
+        .Select(ToWebPath)
+        .ToList();
+    var catFallbackImages = (catDirectoryCandidates.FirstOrDefault(d => d.Exists)?.GetFiles() ?? Array.Empty<global::System.IO.FileInfo>())
+        .Where(x => imageExtensions.Contains(x.Extension))
+        .Select(ToWebPath)
+        .ToList();
+
+    string ResolveSpeciesFallbackImage()
+    {
+        var speciesKey = (Model.Species ?? string.Empty).Trim().ToLowerInvariant();
+        if ((speciesKey.Contains("dog") || speciesKey.Contains("chó") || speciesKey.Contains("cho")) && dogFallbackImages.Count > 0)
+        {
+            return dogFallbackImages[Math.Abs(Model.PetId) % dogFallbackImages.Count];
+        }
+
+        if ((speciesKey.Contains("cat") || speciesKey.Contains("mèo") || speciesKey.Contains("meo")) && catFallbackImages.Count > 0)
+        {
+            return catFallbackImages[Math.Abs(Model.PetId) % catFallbackImages.Count];
+        }
+
+        return Url.Content("~/LayoutPetcare/images/gallery-1.jpg");
+    }
+
+    string ResolveImageUrl(string? imageUrl)
+    {
+        if (string.IsNullOrWhiteSpace(imageUrl))
+        {
+            return ResolveSpeciesFallbackImage();
+        }
+
+        imageUrl = imageUrl.Trim().Replace("\\", "/");
+        if (Uri.IsWellFormedUriString(imageUrl, UriKind.Absolute))
+        {
+            return imageUrl;
+        }
+
+        if (imageUrl.StartsWith("~/"))
+        {
+            return Url.Content(imageUrl);
+        }
+
+        if (imageUrl.StartsWith("wwwroot/"))
+        {
+            return Url.Content($"~/{imageUrl["wwwroot/".Length..]}");
+        }
+
+        if (imageUrl.StartsWith("LayoutPetcare/"))
+        {
+            return Url.Content($"~/{imageUrl}");
+        }
+
+        if (imageUrl.StartsWith("images/"))
+        {
+            return Url.Content($"~/LayoutPetcare/{imageUrl}");
+        }
+
+        return imageUrl.StartsWith("/") ? Url.Content($"~{imageUrl}") : Url.Content($"~/{imageUrl}");
+    }
+
+    var images = Model.ImageUrls.Count > 0 ? Model.ImageUrls : new List<string> { ResolveSpeciesFallbackImage() };
+    var canRequestAdoption = string.Equals(Model.AdoptionStatus, "Available", StringComparison.OrdinalIgnoreCase);
+    var isAuthenticated = User.Identity?.IsAuthenticated == true;
+    var isStaffOrAdmin = User.IsInRole(RoleNames.Admin) || User.IsInRole(RoleNames.Staff);
+    var canOpenAdoptionForm = canRequestAdoption && isAuthenticated && !isStaffOrAdmin;
+    var returnUrl = $"{Context.Request.Path}{Context.Request.QueryString}";
+}
+
+<section class="ftco-section bg-light pet-detail-page">
+    <div class="container">
+        <div class="row mb-3">
+            <div class="col-12">
+                <a class="btn btn-outline-secondary" asp-action="Pets">&larr; Quay lại Pet Gallery</a>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-6 mb-4">
+                <div id="petImageCarousel" class="carousel slide shadow-sm" data-ride="carousel">
+                    <div class="carousel-inner rounded">
+                        @for (var i = 0; i < images.Count; i++)
+                        {
+                            <div class="carousel-item @(i == 0 ? "active" : string.Empty)">
+                                <img src="@ResolveImageUrl(images[i])"
+                                     class="d-block w-100"
+                                     style="height:430px;object-fit:cover;"
+                                     alt="@Model.Name"
+                                     onerror="this.onerror=null;this.src='@ResolveSpeciesFallbackImage()';" />
+                            </div>
+                        }
+                    </div>
+                    <a class="carousel-control-prev" href="#petImageCarousel" role="button" data-slide="prev">
+                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                        <span class="sr-only">Previous</span>
+                    </a>
+                    <a class="carousel-control-next" href="#petImageCarousel" role="button" data-slide="next">
+                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                        <span class="sr-only">Next</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="col-lg-6 mb-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <h2 class="mb-3">@Model.Name</h2>
+                        <div class="detail-meta">
+                            <p><strong>Microchip ID:</strong> @Model.MicrochipId</p>
+                            <p><strong>Loài:</strong> @Model.Species</p>
+                            <p><strong>Giống:</strong> @Model.Breed</p>
+                            <p><strong>Giới tính:</strong> @Model.Gender</p>
+                            <p><strong>Tình trạng sức khỏe:</strong> @(string.IsNullOrWhiteSpace(Model.HealthStatus) ? "Đang theo dõi" : Model.HealthStatus)</p>
+                            <p><strong>Cân nặng:</strong> @(Model.Weight.HasValue ? $"{Model.Weight.Value:N1} kg" : "Chưa cập nhật")</p>
+                            <p><strong>Mô tả:</strong> @(string.IsNullOrWhiteSpace(Model.Description) ? "Chưa có mô tả" : Model.Description)</p>
+                        </div>
+
+                        <div class="mt-3">
+                            <span class="badge @StatusDisplay.BadgeClass(Model.AdoptionStatus) px-3 py-2 mr-2">@StatusDisplay.Label(Model.AdoptionStatus)</span>
+                            <span class="badge @StatusDisplay.BadgeClass(Model.Status) px-3 py-2">@StatusDisplay.Label(Model.Status)</span>
+                        </div>
+
+                        @if (canOpenAdoptionForm)
+                        {
+                            <button type="button" class="btn btn-success btn-lg w-100 mt-4" data-toggle="modal" data-target="#adoptionModal">
+                                Đăng ký nhận nuôi ngay
+                            </button>
+                        }
+                        else if (canRequestAdoption && !isAuthenticated)
+                        {
+                            <a class="btn btn-success btn-lg w-100 mt-4"
+                               asp-controller="Account"
+                               asp-action="Login"
+                               asp-route-returnUrl="@returnUrl">
+                                Đăng nhập để nhận nuôi
+                            </a>
+                            <p class="text-muted small mt-2 mb-0">Bạn cần đăng nhập hoặc đăng ký tài khoản khách hàng trước khi gửi yêu cầu nhận nuôi.</p>
+                        }
+                        else if (canRequestAdoption && isStaffOrAdmin)
+                        {
+                            <button type="button" class="btn btn-secondary btn-lg w-100 mt-4" disabled>
+                                Tài khoản quản trị không gửi yêu cầu nhận nuôi
+                            </button>
+                            <p class="text-muted small mt-2 mb-0">Vui lòng dùng tài khoản khách hàng để gửi yêu cầu nhận nuôi.</p>
+                        }
+                        else
+                        {
+                            <button type="button" class="btn btn-secondary btn-lg w-100 mt-4" disabled>
+                                Không thể đăng ký nhận nuôi
+                            </button>
+                            <p class="text-muted small mt-2 mb-0">Thú cưng này đang ở trạng thái @StatusDisplay.Label(Model.AdoptionStatus), chỉ thú cưng Có sẵn mới được gửi yêu cầu.</p>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-8 mb-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <h5 class="mb-3">Lịch sử tiêm chủng</h5>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped mb-0">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th>Tên Vaccine</th>
+                                        <th>Ngày tiêm</th>
+                                        <th>Ghi chú</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (Model.Vaccinations.Count == 0)
+                                    {
+                                        <tr>
+                                            <td colspan="3" class="text-center text-muted">Chưa có dữ liệu tiêm chủng.</td>
+                                        </tr>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var item in Model.Vaccinations)
+                                        {
+                                            <tr>
+                                                <td>@item.VaccineName</td>
+                                                <td>@item.VaccinationDate.ToString("dd/MM/yyyy")</td>
+                                                <td>@(string.IsNullOrWhiteSpace(item.Notes) ? "-" : item.Notes)</td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4 mb-4">
+                <div class="card border-0 shadow-sm branch-box">
+                    <div class="card-body">
+                        <h5 class="mb-3">Thông tin chi nhánh</h5>
+                        <p class="mb-2"><strong>Tên chi nhánh:</strong> @Model.BranchName</p>
+                        <p class="mb-2"><strong>Địa chỉ:</strong> @Model.BranchAddress</p>
+                        <p class="mb-0"><strong>Hotline:</strong> @(string.IsNullOrWhiteSpace(Model.BranchHotline) ? "Đang cập nhật" : Model.BranchHotline)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+@if (canOpenAdoptionForm)
+{
+    <div class="modal fade" id="adoptionModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Đăng ký nhận nuôi @Model.Name</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form method="post" asp-action="CreateAdoptionRequest" id="adoptionForm">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="petId" value="@Model.PetId" />
+                    <div class="modal-body">
+                        <div class="form-group mb-0">
+                            <label for="adopterMessage">Lời nhắn / Lý do nhận nuôi</label>
+                            <textarea id="adopterMessage" name="message" class="form-control" rows="4" required placeholder="Nhập nội dung mong muốn của bạn..."></textarea>
+                        </div>
+                        <div id="adoptionError" class="alert alert-danger mt-3 mb-0 d-none"></div>
+                        <div id="adoptionSuccess" class="alert alert-success mt-3 mb-0 d-none"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-success">Gửi yêu cầu</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .pet-detail-page strong { color: #1f2937; }
+    .detail-meta p { margin-bottom: .55rem; }
+    .branch-box { border-left: 4px solid #28a745; }
+
+    .adoption-toast {
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
+        z-index: 9999;
+    }
+
+    .adoption-toast-content {
+        background: #28a745;
+        color: #fff;
+        border-radius: 10px;
+        padding: .9rem 1rem;
+        min-width: 260px;
+        box-shadow: 0 .75rem 1.5rem rgba(40, 167, 69, .28);
+        display: flex;
+        flex-direction: column;
+        gap: .25rem;
+    }
+</style>
+
+@if (canOpenAdoptionForm)
+{
+    <script>
+        (function () {
+            const form = document.getElementById('adoptionForm');
+            const errorBox = document.getElementById('adoptionError');
+            const successBox = document.getElementById('adoptionSuccess');
+
+            if (!form) {
+                return;
+            }
+
+            form.addEventListener('submit', async function (event) {
+                event.preventDefault();
+                errorBox.classList.add('d-none');
+                successBox.classList.add('d-none');
+
+                const message = document.getElementById('adopterMessage').value.trim();
+                if (!message) {
+                    errorBox.textContent = 'Vui lòng nhập nội dung yêu cầu nhận nuôi.';
+                    errorBox.classList.remove('d-none');
+                    return;
+                }
+
+                const submitButton = form.querySelector('button[type="submit"]');
+                submitButton.disabled = true;
+
+                try {
+                    const response = await fetch(form.action, {
+                        method: 'POST',
+                        body: new FormData(form),
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+
+                    const result = await response.json();
+                    if (!response.ok || !result.success) {
+                        throw new Error(result.message || 'Không thể gửi yêu cầu nhận nuôi.');
+                    }
+
+                    successBox.textContent = result.message;
+                    successBox.classList.remove('d-none');
+                    setTimeout(function () {
+                        window.location.reload();
+                    }, 900);
+                } catch (error) {
+                    errorBox.textContent = error.message || 'Không thể gửi yêu cầu nhận nuôi.';
+                    errorBox.classList.remove('d-none');
+                    submitButton.disabled = false;
+                }
+            });
+        })();
+    </script>
+}

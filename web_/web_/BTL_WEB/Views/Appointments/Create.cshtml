@@ -1,0 +1,81 @@
+@model BTL_WEB.ViewModels.Appointments.AppointmentCreateViewModel
+@{
+    ViewData["Title"] = "Create Appointment";
+}
+<h1 class="h3 mb-3">Create Appointment</h1>
+<div id="appointment-create-message"></div>
+<form asp-action="Create" method="post" id="appointment-create-form">
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+    <div class="row g-3">
+        <div class="col-md-4">
+            <label asp-for="UserId" class="form-label">User</label>
+            @if (User.IsInRole("Customer"))
+            {
+                <select asp-for="UserId" class="form-select" asp-items="Model.UserOptions" disabled="disabled"></select>
+                <input type="hidden" asp-for="UserId" />
+            }
+            else
+            {
+                <select asp-for="UserId" class="form-select" asp-items="Model.UserOptions"></select>
+            }
+        </div>
+        <div class="col-md-4">
+            <label asp-for="PetId" class="form-label">Pet</label>
+            <select asp-for="PetId" class="form-select" asp-items="Model.PetOptions"></select>
+            <span asp-validation-for="PetId" class="text-danger"></span>
+        </div>
+        <div class="col-md-4">
+            <label asp-for="BranchId" class="form-label">Branch</label>
+            <select asp-for="BranchId" class="form-select" asp-items="Model.BranchOptions"></select>
+            <span asp-validation-for="BranchId" class="text-danger"></span>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="AppointmentDateTime" class="form-label"></label>
+            <input asp-for="AppointmentDateTime" class="form-control" />
+            <span asp-validation-for="AppointmentDateTime" class="text-danger"></span>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="SelectedServiceIds" class="form-label">Services</label>
+            <select asp-for="SelectedServiceIds" class="form-select" asp-items="Model.ServiceOptions" multiple size="8"></select>
+            <span asp-validation-for="SelectedServiceIds" class="text-danger"></span>
+        </div>
+        <div class="col-12">
+            <label asp-for="Notes" class="form-label"></label>
+            <textarea asp-for="Notes" class="form-control" rows="3"></textarea>
+        </div>
+    </div>
+    <div class="mt-3">
+        <button type="submit" class="btn btn-primary">Create</button>
+        <a asp-action="Index" class="btn btn-secondary">Back</a>
+    </div>
+</form>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (() => {
+            const form = document.getElementById('appointment-create-form');
+            const messageBox = document.getElementById('appointment-create-message');
+            if (!form) return;
+
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const formData = new FormData(form);
+
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    body: formData
+                });
+
+                const payload = await response.json().catch(() => null);
+                if (!response.ok || !payload?.success) {
+                    messageBox.innerHTML = `<div class="alert alert-danger">${payload?.message ?? 'Khong the tao appointment.'}</div>`;
+                    return;
+                }
+
+                messageBox.innerHTML = `<div class="alert alert-success">${payload.message}</div>`;
+                window.location.href = payload.redirectUrl;
+            });
+        })();
+    </script>
+}

@@ -1,0 +1,493 @@
+@model BTL_WEB.Models.ViewModels.ServiceCatalogViewModel
+
+@{
+    ViewData["Title"] = "Dịch vụ chăm sóc";
+    var isStaffOrAdmin = User.IsInRole(RoleNames.Admin) || User.IsInRole(RoleNames.Staff);
+    Layout = isStaffOrAdmin ? "_Layout" : "~/Views/Shared/_LayoutPetcarehub.cshtml";
+    var branches = ViewBag.BranchOptions as IEnumerable<dynamic> ?? [];
+    var allPets = ViewBag.AllPetOptions as IEnumerable<dynamic> ?? [];
+    var customerPets = ViewBag.CustomerPetOptions as IEnumerable<dynamic> ?? [];
+}
+
+<section class="ftco-section bg-light">
+    <div class="container">
+        @if (TempData["SuccessMessage"] is string successMessage)
+        {
+            <div class="alert alert-success">@successMessage</div>
+        }
+        @if (TempData["ErrorMessage"] is string errorMessage)
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        <div class="card border-0 shadow-sm mb-4 d-none" id="service-booking-form">
+            <div class="card-body">
+                <h5 class="mb-3">Đặt lịch hẹn ngay tại trang dịch vụ</h5>
+                <form method="post" asp-controller="Management" asp-action="CreateAppointment" id="serviceBookingForm" class="row">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="returnUrl" value="@(Url.Action("Catalog", "Services") + "#service-booking-form")" />
+                    <input type="hidden" name="selectedServiceId" id="selectedServiceIdFromCard" />
+                    <input type="hidden" name="petId" id="selectedPetIdFromService" />
+                    <input type="hidden" name="appointmentDateTime" id="appointmentDateTimeFromService" />
+
+                    <div class="col-md-4 mb-2">
+                        <label class="small text-muted mb-1">Loài</label>
+                        <select class="form-control" name="petSpecies" id="servicePetSpecies">
+                            <option value="">Tất cả loài</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="small text-muted mb-1">Giống</label>
+                        <select class="form-control" name="petBreed" id="servicePetBreed">
+                            <option value="">Tất cả giống</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="small text-muted mb-1">Giới tính</label>
+                        <select class="form-control" name="petGender" id="servicePetGender">
+                            <option value="">Tất cả giới tính</option>
+                            <option value="Male">Đực</option>
+                            <option value="Female">Cái</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4 mb-2">
+                        <label class="small text-muted mb-1">Chi nhánh</label>
+                        <select class="form-control" name="branchId" required>
+                            <option value="">Chọn chi nhánh</option>
+                            @foreach (var branch in branches)
+                            {
+                                <option value="@branch.BranchId">@branch.BranchName</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="small text-muted mb-1">Ngày hẹn</label>
+                        <input class="form-control" type="date" id="serviceAppointmentDate" required />
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <label class="small text-muted mb-1">Giờ hẹn</label>
+                        <select class="form-control" id="serviceAppointmentTime" required>
+                            <option value="">Chọn giờ</option>
+                            @foreach (var timeSlot in new[] { "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00" })
+                            {
+                                <option value="@timeSlot">@timeSlot</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-md-8 mb-2">
+                        <label class="small text-muted mb-1">Ghi chú</label>
+                        <input class="form-control" name="notes" placeholder="Nhập ghi chú cho lịch hẹn" />
+                    </div>
+                    <div class="col-md-4 mb-2 d-flex align-items-end">
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <button type="submit" class="btn btn-success w-100">Đặt lịch hẹn</button>
+                        }
+                        else
+                        {
+                            <a class="btn btn-outline-primary w-100" asp-controller="Account" asp-action="Login" asp-route-returnUrl="@Url.Action("Catalog", "Services")">Đăng nhập để đặt lịch</a>
+                        }
+                    </div>
+                    <div class="col-12">
+                        <small class="text-muted">Bấm "Đặt lịch ngay" ở từng dịch vụ để mở form và tự chọn dịch vụ đó.</small>
+                        <div id="selectedServiceHint" class="text-success small mt-1"></div>
+                        <div id="serviceBookingMessage" class="text-danger small mt-1"></div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="modal fade" id="servicePetChoiceModal" tabindex="-1" role="dialog" aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Chọn thú cưng để đặt lịch</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group mb-3">
+                            <label class="small text-muted mb-1">Bạn muốn đặt lịch cho</label>
+                            <select class="form-control" id="bookingPetMode">
+                                <option value="mine">Thú cưng của tôi</option>
+                                <option value="other">Thú cưng khác</option>
+                            </select>
+                        </div>
+
+                        <div id="bookingMinePetWrap" class="form-group mb-2">
+                            <label class="small text-muted mb-1">Danh sách thú cưng của tôi</label>
+                            <select class="form-control" id="bookingMinePetSelect"></select>
+                            <small class="text-muted">Chọn thú cưng có sẵn để chuyển nhanh sang form lịch hẹn.</small>
+                        </div>
+
+                        <div id="bookingOtherPetHint" class="alert alert-light border mb-0 d-none">
+                            Bạn sẽ nhập thông tin thú cưng khác ngay tại form ở trang dịch vụ.
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Hủy</button>
+                        <button type="button" class="btn btn-primary" id="confirmServicePetChoice">Tiếp tục</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row justify-content-center mb-4">
+            <div class="col-md-10 text-center heading-section">
+                <h2>Dịch vụ chăm sóc thú cưng</h2>
+                <p>Danh sách dịch vụ theo danh mục: Chăm sóc cơ bản, Y tế, Làm đẹp.</p>
+                @if (isStaffOrAdmin)
+                {
+                    <a asp-controller="Services" asp-action="Create" class="btn btn-primary mt-2">+ Tạo dịch vụ</a>
+                }
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mb-4 service-search-box">
+            <div class="card-body py-3">
+                <div class="row align-items-center">
+                    <div class="col-lg-8 mb-2 mb-lg-0">
+                        <div class="input-group">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text bg-white border-right-0"><span class="fa fa-search text-success"></span></span>
+                            </div>
+                            <input id="serviceSearchInput" type="search" class="form-control border-left-0" placeholder="Tìm theo tên dịch vụ hoặc mô tả..." />
+                        </div>
+                    </div>
+                    <div class="col-lg-4 text-lg-right">
+                        <button id="btnServiceSearch" type="button" class="btn btn-success px-4 mr-2">
+                            Tìm kiếm
+                        </button>
+                        <button id="btnClearServiceSearch" type="button" class="btn btn-outline-secondary px-4">Đặt lại</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (Model.Groups.Count == 0)
+        {
+            <div class="alert alert-light border text-center text-muted">Chưa có dịch vụ khả dụng.</div>
+        }
+        else
+        {
+            @foreach (var group in Model.Groups)
+            {
+                <div class="mb-4 service-group">
+                    <h4 class="mb-3">@group.CategoryName</h4>
+                    <div class="row">
+                        @if (group.Services.Count == 0)
+                        {
+                            <div class="col-12">
+                                <div class="alert alert-light border text-muted">Danh mục này chưa có dịch vụ hoạt động.</div>
+                            </div>
+                        }
+                        else
+                        {
+                            @foreach (var service in group.Services)
+                            {
+                                <div class="col-md-4 mb-3 service-item" data-service-text="@($"{service.ServiceName} {service.Description} {group.CategoryName}".ToLowerInvariant())">
+                                    <div class="card h-100 border-0 shadow-sm service-card">
+                                        <div class="card-body d-flex flex-column">
+                                            <h5 class="mb-2">@service.ServiceName</h5>
+                                            <p class="text-muted mb-2">@(string.IsNullOrWhiteSpace(service.Description) ? "Chưa có mô tả" : service.Description)</p>
+                                            <p class="mb-1"><strong>Giá:</strong> @service.Price.ToString("N0") đ</p>
+                                            <p class="mb-3"><strong>Thời gian dự kiến:</strong> @service.DurationMinutes phút</p>
+                                            @if (isStaffOrAdmin)
+                                            {
+                                                <div class="mt-auto d-flex gap-2">
+                                                    <a asp-controller="Services" asp-action="Edit" asp-route-id="@service.ServiceId" class="btn btn-outline-primary">Chỉnh sửa</a>
+                                                    <a asp-controller="Services" asp-action="Delete" asp-route-id="@service.ServiceId" class="btn btn-outline-danger">Xóa</a>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <button type="button"
+                                                        class="btn btn-primary mt-auto btn-service-book"
+                                                        data-service-id="@service.ServiceId"
+                                                        data-service-name="@service.ServiceName">
+                                                    Đặt lịch ngay
+                                                </button>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</section>
+
+<style>
+    .service-search-box .input-group-text,
+    .service-search-box .form-control {
+        height: 48px;
+        border-color: #d9e2d9;
+    }
+
+    .service-search-box .form-control:focus {
+        border-color: #28a745;
+        box-shadow: 0 0 0 .2rem rgba(40, 167, 69, .15);
+    }
+</style>
+
+<script>
+    (function () {
+        const input = document.getElementById('serviceSearchInput');
+        const btnSearch = document.getElementById('btnServiceSearch');
+        const btnClear = document.getElementById('btnClearServiceSearch');
+        const items = Array.from(document.querySelectorAll('.service-item'));
+        const groups = Array.from(document.querySelectorAll('.service-group'));
+
+        function applyServiceFilter() {
+            const keyword = (input.value || '').trim().toLowerCase();
+
+            items.forEach(item => {
+                const text = item.dataset.serviceText || '';
+                item.style.display = !keyword || text.includes(keyword) ? '' : 'none';
+            });
+
+            groups.forEach(group => {
+                const groupItems = Array.from(group.querySelectorAll('.service-item'));
+                const visibleInGroup = groupItems.some(x => x.style.display !== 'none');
+                group.style.display = visibleInGroup ? '' : 'none';
+            });
+        }
+
+        btnSearch?.addEventListener('click', applyServiceFilter);
+        btnClear?.addEventListener('click', function () {
+            input.value = '';
+            applyServiceFilter();
+        });
+        input?.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                applyServiceFilter();
+            }
+        });
+
+        const bookingForm = document.getElementById('serviceBookingForm');
+        if (!bookingForm) return;
+
+        const serviceIdInput = document.getElementById('selectedServiceIdFromCard');
+        const dateInput = document.getElementById('serviceAppointmentDate');
+        const timeInput = document.getElementById('serviceAppointmentTime');
+        const dateTimeInput = document.getElementById('appointmentDateTimeFromService');
+        const message = document.getElementById('serviceBookingMessage');
+        const selectedServiceHint = document.getElementById('selectedServiceHint');
+        const bookingRoot = document.getElementById('service-booking-form');
+        const speciesFilter = document.getElementById('servicePetSpecies');
+        const breedFilter = document.getElementById('servicePetBreed');
+        const genderFilter = document.getElementById('servicePetGender');
+        const selectedPetId = document.getElementById('selectedPetIdFromService');
+        const bookingButtons = document.querySelectorAll('.btn-service-book');
+        const allPets = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(allPets.Select(p => new { petId = (int)p.PetId, ownerId = (int?)p.OwnerId, species = (string?)p.Species, breed = (string?)p.Breed, gender = (string?)p.Gender })));
+        const customerPets = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(customerPets.Select(p => new { petId = (int)p.PetId, ownerId = (int?)p.OwnerId, name = (string?)p.Name, species = (string?)p.Species, breed = (string?)p.Breed, gender = (string?)p.Gender })));
+        const petChoiceModal = document.getElementById('servicePetChoiceModal');
+        const bookingPetMode = document.getElementById('bookingPetMode');
+        const bookingMinePetWrap = document.getElementById('bookingMinePetWrap');
+        const bookingMinePetSelect = document.getElementById('bookingMinePetSelect');
+        const bookingOtherPetHint = document.getElementById('bookingOtherPetHint');
+        const confirmServicePetChoice = document.getElementById('confirmServicePetChoice');
+        let pendingServiceSelection = null;
+
+        const pad = value => String(value).padStart(2, '0');
+        const now = new Date();
+        const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+        dateInput.min = today;
+        dateInput.value = today;
+
+        const normalize = value => String(value || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replaceAll('đ', 'd')
+            .trim();
+
+        const normalizeSpeciesKey = value => {
+            const key = normalize(value);
+            if (['cat', 'meo'].includes(key)) return 'cat';
+            if (['dog', 'cho', 'cun'].includes(key)) return 'dog';
+            return key;
+        };
+        const normalizeGender = value => {
+            const key = normalize(value);
+            if (!key) return '';
+            if (["male", "m", "duc", "đực"].includes(key)) return 'male';
+            if (["female", "f", "cai", "cái"].includes(key)) return 'female';
+            return key;
+        };
+
+        function fillSelectOptions(selectElement, values, allLabel) {
+            if (!selectElement) return;
+            const previous = selectElement.value;
+            selectElement.innerHTML = '';
+
+            const first = document.createElement('option');
+            first.value = '';
+            first.textContent = allLabel;
+            selectElement.appendChild(first);
+
+            values.forEach(value => {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = value;
+                selectElement.appendChild(option);
+            });
+
+            if ([...selectElement.options].some(x => x.value === previous)) {
+                selectElement.value = previous;
+            }
+        }
+
+        function uniqueSorted(values) {
+            return [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'));
+        }
+
+        const speciesOptions = ['Cat', 'Dog'];
+        fillSelectOptions(speciesFilter, speciesOptions, 'Tất cả loài');
+
+        function refreshBreedOptions() {
+            const species = normalizeSpeciesKey(speciesFilter?.value);
+            const breeds = uniqueSorted(allPets
+                .filter(p => !species || normalizeSpeciesKey(p.species) === species)
+                .map(p => p.breed));
+            fillSelectOptions(breedFilter, breeds, 'Tất cả giống');
+        }
+
+        refreshBreedOptions();
+
+        function applyPetSelectionFromFilter() {
+            const species = normalizeSpeciesKey(speciesFilter?.value);
+            const breed = normalize(breedFilter?.value);
+            const gender = normalizeGender(genderFilter?.value);
+
+            const matched = customerPets.filter(p => {
+                const matchSpecies = !species || normalizeSpeciesKey(p.species) === species;
+                const matchBreed = !breed || normalize(p.breed) === breed;
+                const matchGender = !gender || normalizeGender(p.gender) === gender;
+                return matchSpecies && matchBreed && matchGender;
+            });
+
+            selectedPetId.value = matched.length ? String(matched[0].petId) : '';
+            message.textContent = matched.length
+                ? ''
+                : 'Thông tin thú cưng sẽ được ghi nhận từ bộ lọc bạn đã chọn.';
+        }
+
+        function renderMinePetOptions() {
+            if (!bookingMinePetSelect) return;
+
+            bookingMinePetSelect.innerHTML = '';
+            if (!customerPets.length) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'Chưa có thú cưng nào';
+                bookingMinePetSelect.appendChild(option);
+                return;
+            }
+
+            customerPets.forEach(pet => {
+                const option = document.createElement('option');
+                option.value = String(pet.petId);
+                const species = pet.species || 'Khác';
+                option.textContent = `${pet.name || `Pet ${pet.petId}`} (${species})`;
+                bookingMinePetSelect.appendChild(option);
+            });
+        }
+
+        function refreshPetChoiceView() {
+            const mode = bookingPetMode?.value || 'mine';
+            bookingMinePetWrap?.classList.toggle('d-none', mode !== 'mine');
+            bookingOtherPetHint?.classList.toggle('d-none', mode !== 'other');
+        }
+
+        speciesFilter?.addEventListener('change', function () {
+            refreshBreedOptions();
+            applyPetSelectionFromFilter();
+        });
+        breedFilter?.addEventListener('change', applyPetSelectionFromFilter);
+        genderFilter?.addEventListener('change', applyPetSelectionFromFilter);
+        applyPetSelectionFromFilter();
+
+        bookingButtons.forEach(btn => {
+            btn.addEventListener('click', function () {
+                const serviceId = btn.getAttribute('data-service-id') || '';
+                const serviceName = btn.getAttribute('data-service-name') || '';
+                pendingServiceSelection = { serviceId, serviceName };
+                renderMinePetOptions();
+                refreshPetChoiceView();
+                if (window.jQuery && petChoiceModal) {
+                    window.jQuery(petChoiceModal).modal('show');
+                }
+            });
+        });
+
+        bookingPetMode?.addEventListener('change', refreshPetChoiceView);
+
+        confirmServicePetChoice?.addEventListener('click', () => {
+            if (!pendingServiceSelection?.serviceId) return;
+
+            const mode = bookingPetMode?.value || 'mine';
+            const serviceId = pendingServiceSelection.serviceId;
+            const serviceName = pendingServiceSelection.serviceName || '';
+
+            if (mode === 'mine') {
+                const petId = bookingMinePetSelect?.value || '';
+                if (!petId) {
+                    message.textContent = 'Bạn chưa có thú cưng để chọn. Vui lòng chọn "Thú cưng khác".';
+                    if (window.jQuery && petChoiceModal) {
+                        window.jQuery(petChoiceModal).modal('hide');
+                    }
+                    return;
+                }
+
+                const targetUrl = `/Management/Appointments?selectedServiceId=${encodeURIComponent(serviceId)}&selectedPetId=${encodeURIComponent(petId)}#create-appointment-form`;
+                window.location.href = targetUrl;
+                return;
+            }
+
+            serviceIdInput.value = serviceId;
+            selectedPetId.value = '';
+            bookingRoot?.classList.remove('d-none');
+            bookingRoot?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            selectedServiceHint.textContent = serviceName ? `Đã chọn dịch vụ: ${serviceName}` : '';
+            message.textContent = 'Bạn đang đặt lịch cho thú cưng khác. Vui lòng nhập thông tin phía trên.';
+
+            if (window.jQuery && petChoiceModal) {
+                window.jQuery(petChoiceModal).modal('hide');
+            }
+        });
+
+        bookingForm.addEventListener('submit', function (event) {
+            if (!serviceIdInput.value) {
+                event.preventDefault();
+                message.textContent = 'Vui lòng bấm "Đặt lịch ngay" ở dịch vụ bạn muốn trước khi gửi form.';
+                return;
+            }
+
+            applyPetSelectionFromFilter();
+
+            if (!dateInput.value || !timeInput.value) {
+                event.preventDefault();
+                message.textContent = 'Vui lòng chọn ngày và giờ hẹn.';
+                return;
+            }
+
+            const dateTime = `${dateInput.value}T${timeInput.value}`;
+            const candidate = new Date(dateTime);
+            if (Number.isNaN(candidate.getTime()) || candidate <= new Date()) {
+                event.preventDefault();
+                message.textContent = 'Thời gian lịch hẹn phải lớn hơn hiện tại.';
+                return;
+            }
+
+            dateTimeInput.value = dateTime;
+        });
+    })();
+</script>

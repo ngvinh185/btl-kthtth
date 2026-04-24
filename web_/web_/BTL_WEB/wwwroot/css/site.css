@@ -1,0 +1,133 @@
+html {
+  font-size: 14px;
+}
+
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+}
+
+html {
+  position: relative;
+  min-height: 100%;
+}
+
+body {
+  margin-bottom: 0;
+}
+
+.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
+  color: var(--bs-secondary-color);
+  text-align: end;
+}
+
+.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
+  text-align: start;
+}
+
+.app-auth-section.ftco-section {
+  padding: 4em 0;
+  min-height: 420px;
+}
+
+.app-auth-section .block-7 {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.08);
+}
+
+.footer {
+  padding: 4em 0;
+}
+
+.auth-page {
+  min-height: calc(100vh - 180px);
+  padding: 72px 0;
+  background: #f8f9fa;
+}
+
+.auth-card {
+  width: min(100%, 560px);
+  margin: 0 auto;
+  padding: 40px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.1);
+}
+
+.auth-card-wide {
+  width: min(100%, 760px);
+}
+
+.auth-card h1 {
+  margin-bottom: 24px;
+  color: #222;
+  font-size: 28px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.auth-card .form-control {
+  height: 52px;
+}
+
+.auth-card .form-check-input {
+  margin-top: 0.25rem;
+}
+
+@media (max-width: 767.98px) {
+  .app-auth-section.ftco-section {
+    padding: 3em 0;
+  }
+
+  .auth-page {
+    padding: 40px 0;
+  }
+
+  .auth-card {
+    padding: 28px 20px;
+  }
+
+  .table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table th,
+  .table td {
+    vertical-align: middle;
+  }
+
+  .btn,
+  .form-control,
+  .form-select {
+    max-width: 100%;
+  }
+
+  .d-flex.gap-2,
+  .d-flex.flex-wrap {
+    row-gap: .5rem;
+  }
+
+  .ftco-section .container {
+    max-width: 100%;
+  }
+}
+
+.table-responsive {
+  -webkit-overflow-scrolling: touch;
+}
+
+.badge {
+  border-radius: 8px;
+  line-height: 1.2;
+  white-space: nowrap;
+}

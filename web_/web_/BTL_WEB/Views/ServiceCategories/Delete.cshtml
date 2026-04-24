@@ -1,0 +1,12 @@
+@model BTL_WEB.Models.ServiceCategory
+@{
+    ViewData["Title"] = "Delete Category";
+}
+<h1 class="h3 mb-3">Delete Category</h1>
+<div class="alert alert-warning">Xoa category <strong>@Model.CategoryName</strong>?</div>
+<form asp-action="Delete" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="CategoryId" />
+    <button type="submit" class="btn btn-danger">Delete</button>
+    <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+</form>

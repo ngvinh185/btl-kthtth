@@ -1,0 +1,89 @@
+@model BTL_WEB.Helpers.PaginatedList<BTL_WEB.Models.AdoptionRequest>
+@using Microsoft.AspNetCore.Mvc.Rendering
+@{
+    ViewData["Title"] = "Adoption Requests";
+    var pets = ViewBag.Pets as List<SelectListItem> ?? new();
+    var currentPageSize = (int)(ViewBag.PageSize ?? 10);
+}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Adoption Requests</h1>
+    @if (User.IsInRole("Customer"))
+    {
+        <a asp-action="Create" class="btn btn-primary">Send Request</a>
+    }
+</div>
+<form method="get" class="row g-2 mb-3">
+    <div class="col-md-4">
+        <select name="petId" class="form-select" asp-items="pets">
+            <option value="">All pets</option>
+        </select>
+    </div>
+    <div class="col-md-3">
+        <select name="status" class="form-select">
+            <option value="">All status</option>
+            @foreach (var status in new[] { "Pending", "Approved", "Rejected" })
+            {
+                if ((string?)ViewBag.Status == status)
+                {
+                    <option value="@status" selected>@StatusDisplay.Label(status)</option>
+                }
+                else
+                {
+                    <option value="@status">@StatusDisplay.Label(status)</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="col-md-2">
+        <select name="pageSize" class="form-select">
+            @foreach (var size in new[] { 5, 10, 20 })
+            {
+                if (currentPageSize == size)
+                {
+                    <option value="@size" selected>@size</option>
+                }
+                else
+                {
+                    <option value="@size">@size</option>
+                }
+            }
+        </select>
+    </div>
+    <div class="col-md-2">
+        <button type="submit" class="btn btn-outline-primary w-100">Filter</button>
+    </div>
+</form>
+<div class="mb-2 text-muted">Total: @Model.TotalItems requests</div>
+<table class="table table-bordered">
+    <thead><tr><th>Date</th><th>User</th><th>Pet</th><th>Status</th><th>Reviewed By</th><th></th></tr></thead>
+    <tbody>
+    @foreach (var item in Model.Items)
+    {
+        <tr>
+            <td>@item.RequestDate.ToString("g")</td>
+            <td>@item.User.FullName</td>
+            <td>@item.Pet.Name</td>
+            <td><span class="badge @StatusDisplay.BadgeClass(item.Status)">@StatusDisplay.Label(item.Status)</span></td>
+            <td>@(item.ReviewedByStaff?.User.FullName ?? "-")</td>
+            <td><a asp-action="Details" asp-route-id="@item.RequestId" class="btn btn-sm btn-outline-info">Details</a></td>
+        </tr>
+    }
+    </tbody>
+</table>
+<div class="d-flex justify-content-between align-items-center">
+    <span>Page @Model.PageIndex / @Model.TotalPages</span>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary @(Model.HasPreviousPage ? "" : "disabled")"
+           asp-action="Index"
+           asp-route-page="@(Model.PageIndex - 1)"
+           asp-route-pageSize="@Model.PageSize"
+           asp-route-petId="@ViewBag.PetId"
+           asp-route-status="@ViewBag.Status">Previous</a>
+        <a class="btn btn-outline-secondary @(Model.HasNextPage ? "" : "disabled")"
+           asp-action="Index"
+           asp-route-page="@(Model.PageIndex + 1)"
+           asp-route-pageSize="@Model.PageSize"
+           asp-route-petId="@ViewBag.PetId"
+           asp-route-status="@ViewBag.Status">Next</a>
+    </div>
+</div>
